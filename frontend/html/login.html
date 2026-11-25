@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOC Authentication Portal | MiniSIEM X</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    .login-wrapper {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: radial-gradient(circle at center, #10192e 0%, #080c14 100%);
+    }
+    .login-box {
+      width: 100%;
+      max-width: 440px;
+      background-color: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 2.25rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+    .login-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .login-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-purple));
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+    }
+    .demo-users-box {
+      margin-top: 1.75rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid var(--border-color);
+    }
+    .demo-user-btn {
+      width: 100%;
+      text-align: left;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.4rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      color: var(--text-secondary);
+      font-size: 0.78rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s ease;
+    }
+    .demo-user-btn:hover {
+      background: var(--bg-card-hover);
+      color: #fff;
+      border-color: var(--border-focus);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="login-box">
+      <div class="login-header">
+        <div class="login-icon">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <h2 style="font-size:1.5rem;font-weight:700;color:#fff;">MiniSIEM X Portal</h2>
+        <p style="font-size:0.85rem;color:var(--text-muted);margin-top:4px;">Unified Security Operations & Triage</p>
+      </div>
+
+      <form id="login-form" onsubmit="event.preventDefault(); handleLogin(this.username.value, this.password.value);">
+        <div class="form-group">
+          <label class="form-label" for="username">Username</label>
+          <input class="form-input" type="text" id="username" name="username" placeholder="e.g. admin" required autofocus>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Password</label>
+          <input class="form-input" type="password" id="password" name="password" placeholder="••••••••••••" required>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:0.75rem;margin-top:1rem;">
+          <i class="fa-solid fa-lock"></i> Authenticate Session
+        </button>
+      </form>
+
+      <div class="demo-users-box">
+        <div style="font-size:0.75rem;font-weight:600;color:var(--accent-cyan);text-transform:uppercase;margin-bottom:0.75rem;letter-spacing:0.5px;">
+          <i class="fa-solid fa-users-gear"></i> Quick Demo Logins
+        </div>
+        <button type="button" class="demo-user-btn" onclick="quickFillLogin('admin', 'Admin@MiniSIEM2026!')">
+          <span><strong>admin</strong> (Super Admin)</span>
+          <span class="badge badge-critical">Full Access</span>
+        </button>
+        <button type="button" class="demo-user-btn" onclick="quickFillLogin('analyst', 'Analyst@2026!')">
+          <span><strong>analyst</strong> (Security Analyst)</span>
+          <span class="badge badge-high">Triage Role</span>
+        </button>
+        <button type="button" class="demo-user-btn" onclick="quickFillLogin('viewer', 'Viewer@2026!')">
+          <span><strong>viewer</strong> (Compliance Auditor)</span>
+          <span class="badge badge-low">Read-Only</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+</body>
+</html>
+

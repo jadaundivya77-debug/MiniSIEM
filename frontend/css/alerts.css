@@ -1,0 +1,123 @@
+/* MiniSIEM X Alerts & Incidents Styles */
+
+/* Alert Detail Drawer */
+.alert-drawer {
+  position: fixed;
+  top: 0;
+  right: -600px;
+  width: 600px;
+  height: 100vh;
+  background-color: var(--bg-secondary);
+  border-left: 1px solid var(--border-color);
+  box-shadow: -15px 0 40px rgba(0, 0, 0, 0.7);
+  z-index: 600;
+  transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+.alert-drawer.open {
+  right: 0;
+}
+
+.drawer-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.drawer-section {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+}
+
+.drawer-section-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent-cyan);
+  margin-bottom: 0.5rem;
+  letter-spacing: 0.5px;
+}
+
+.evidence-box {
+  background-color: #050810;
+  color: #38bdf8;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  padding: 0.85rem;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+}
+
+/* Incident Attack Story Timeline */
+.attack-story-timeline {
+  position: relative;
+  padding-left: 1.75rem;
+  margin: 1rem 0;
+}
+
+.attack-story-timeline::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 6px;
+  width: 2px;
+  background-color: var(--accent-indigo);
+}
+
+.story-step {
+  position: relative;
+  margin-bottom: 1.5rem;
+}
+
+.story-step::before {
+  content: "";
+  position: absolute;
+  left: -1.75rem;
+  top: 4px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: var(--bg-secondary);
+  border: 3px solid var(--accent-purple);
+  box-shadow: 0 0 8px var(--accent-purple);
+}
+
+.story-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+}
+
+.story-step-stage {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.story-step-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  background-color: var(--bg-card);
+  padding: 0.65rem 0.85rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+}
+

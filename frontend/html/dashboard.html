@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Overview Dashboard | MiniSIEM X</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/dashboard.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <div class="sidebar-title">MiniSIEM X</div>
+          <div class="sidebar-tagline">SOC Intelligence</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-category">Monitoring</div>
+        <a href="dashboard.html" class="nav-link active"><i class="fa-solid fa-chart-pie"></i> Overview</a>
+        <a href="live-logs.html" class="nav-link"><i class="fa-solid fa-stream"></i> Live Log Monitoring</a>
+        <a href="alerts.html" class="nav-link"><i class="fa-solid fa-triangle-exclamation"></i> Threat Alerts</a>
+        <a href="incidents.html" class="nav-link"><i class="fa-solid fa-fire-flame-curved"></i> Incident Management</a>
+
+        <div class="nav-category">Environment</div>
+        <a href="sources.html" class="nav-link"><i class="fa-solid fa-server"></i> Log Sources</a>
+        <a href="assets.html" class="nav-link"><i class="fa-solid fa-network-wired"></i> Asset Inventory</a>
+        <a href="detection-rules.html" class="nav-link"><i class="fa-solid fa-code-branch"></i> Detection Rules</a>
+        <a href="threat-intelligence.html" class="nav-link"><i class="fa-solid fa-user-secret"></i> Threat Intelligence</a>
+
+        <div class="nav-category">Analytics & Admin</div>
+        <a href="reports.html" class="nav-link"><i class="fa-solid fa-file-shield"></i> Security Reports</a>
+        <a href="settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div>Engine v1.0.0-PROD</div>
+        <div style="color:var(--severity-success);margin-top:2px;">● Online & Streaming</div>
+      </div>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+      <!-- Topbar Navigation -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">SOC Overview Dashboard</h1>
+          <span id="demo-mode-indicator" class="badge badge-demo" style="display:none;">
+            <i class="fa-solid fa-flask" style="margin-right:4px;"></i> DEMO DATA ACTIVE
+          </span>
+        </div>
+        <div class="topbar-right">
+          <!-- Attack Simulation Button -->
+          <button class="btn btn-sim" onclick="openSimulationModal()">
+            <i class="fa-solid fa-skull"></i> START ATTACK SIMULATION
+          </button>
+          
+          <div id="topbar-user-badge" class="badge badge-info" style="cursor:pointer;" onclick="window.location.href='settings.html'">
+            <i class="fa-solid fa-user-shield"></i> Analyst
+          </div>
+
+          <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="handleLogout()">
+            <i class="fa-solid fa-power-off"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content Area -->
+      <main class="content-container">
+        <!-- Engine Status Banner -->
+        <div class="engine-status-box">
+          <div id="engine-status-text" style="display:flex;align-items:center;font-size:0.85rem;font-weight:600;color:#fff;">
+            <span class="status-dot status-connected"></span> Detection Engine Active
+          </div>
+          <div style="font-size:0.75rem;color:var(--text-secondary);">
+            Real-time multi-source correlation sliding windows active
+          </div>
+        </div>
+
+        <!-- KPI Metric Cards Grid -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Total Events Collected</span>
+              <i class="fa-solid fa-database kpi-icon"></i>
+            </div>
+            <div id="kpi-events" class="kpi-value">0</div>
+            <div class="kpi-subtext">Across all connected forwarders</div>
+          </div>
+
+          <div class="kpi-card kpi-warning">
+            <div class="kpi-header">
+              <span class="kpi-title">Total Security Alerts</span>
+              <i class="fa-solid fa-bell kpi-icon" style="color:#f97316;"></i>
+            </div>
+            <div id="kpi-alerts" class="kpi-value">0</div>
+            <div class="kpi-subtext">Automated rule detections</div>
+          </div>
+
+          <div class="kpi-card kpi-danger">
+            <div class="kpi-header">
+              <span class="kpi-title">Critical Incidents</span>
+              <i class="fa-solid fa-triangle-exclamation kpi-icon" style="color:#ef4444;"></i>
+            </div>
+            <div id="kpi-critical" class="kpi-value">0</div>
+            <div class="kpi-subtext">Correlated multi-stage attacks</div>
+          </div>
+
+          <div class="kpi-card kpi-success">
+            <div class="kpi-header">
+              <span class="kpi-title">Active Log Sources</span>
+              <i class="fa-solid fa-network-wired kpi-icon" style="color:#10b981;"></i>
+            </div>
+            <div id="kpi-sources" class="kpi-value">0</div>
+            <div class="kpi-subtext">Connected telemetry collectors</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Open Incidents</span>
+              <i class="fa-solid fa-folder-open kpi-icon"></i>
+            </div>
+            <div id="kpi-open-incidents" class="kpi-value">0</div>
+            <div class="kpi-subtext">Awaiting analyst remediation</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-header">
+              <span class="kpi-title">Processed (24h)</span>
+              <i class="fa-solid fa-bolt kpi-icon" style="color:#38bdf8;"></i>
+            </div>
+            <div id="kpi-today-events" class="kpi-value">0</div>
+            <div class="kpi-subtext">Normalized & validated events</div>
+          </div>
+        </div>
+
+        <!-- Primary Charts Grid: Events Timeline & Severity Doughnut -->
+        <div class="charts-grid">
+          <div class="card chart-card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-chart-line" style="color:#06b6d4;"></i> Security Events Rate Over Time</span>
+              <span class="badge badge-info">Real-time Telemetry</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-events"></canvas>
+            </div>
+          </div>
+
+          <div class="card chart-card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-chart-pie" style="color:#f97316;"></i> Alerts by Severity</span>
+              <span class="badge badge-info">Risk Distribution</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-severity"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Secondary Charts Grid: Attack Types & Events by Source -->
+        <div class="charts-grid-secondary">
+          <div class="card chart-card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-shield-virus" style="color:#8b5cf6;"></i> Attack Types Distribution</span>
+              <span class="badge badge-info">Rule Hits</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-attacks"></canvas>
+            </div>
+          </div>
+
+          <div class="card chart-card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-layer-group" style="color:#10b981;"></i> Events by Log Source</span>
+              <span class="badge badge-info">Ingestion Breakdown</span>
+            </div>
+            <div class="chart-wrapper">
+              <canvas id="chart-sources"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Grid: Timeline Activity & Risky Assets / Suspicious IPs -->
+        <div class="dashboard-details-grid">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-clock-rotate-left" style="color:#38bdf8;"></i> Security Activity Timeline</span>
+              <a href="alerts.html" class="btn btn-outline" style="padding:0.25rem 0.6rem;font-size:0.75rem;">View All Alerts</a>
+            </div>
+            <div id="dashboard-activity-feed" class="timeline-list">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:1.25rem;">
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-fire" style="color:#ef4444;"></i> Top Risky Assets</span>
+                <a href="assets.html" class="btn btn-outline" style="padding:0.25rem 0.6rem;font-size:0.75rem;">Inventory</a>
+              </div>
+              <div id="dashboard-risky-assets" class="table-responsive">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-user-secret" style="color:#f97316;"></i> Top Suspicious IPs</span>
+                <a href="threat-intelligence.html" class="btn btn-outline" style="padding:0.25rem 0.6rem;font-size:0.75rem;">Intel</a>
+              </div>
+              <div id="dashboard-top-ips" class="table-responsive">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Floating AI Assistant Button -->
+  <button class="floating-assistant-btn" onclick="toggleAssistant()" title="Open AI Security Assistant">
+    <i class="fa-solid fa-wand-magic-sparkles"></i>
+  </button>
+
+  <!-- AI Security Assistant Drawer -->
+  <aside id="assistant-drawer" class="assistant-drawer">
+    <div class="assistant-header">
+      <div style="display:flex;align-items:center;gap:0.5rem;">
+        <i class="fa-solid fa-brain" style="color:#a78bfa;font-size:1.2rem;"></i>
+        <div>
+          <h3 style="font-size:0.95rem;font-weight:700;color:#fff;">AI Security Assistant</h3>
+          <span style="font-size:0.7rem;color:var(--accent-cyan);">Evidence-Based Explanation Engine</span>
+        </div>
+      </div>
+      <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="toggleAssistant()">&times;</button>
+    </div>
+
+    <div id="assistant-chat" class="assistant-chat">
+      <div class="chat-bubble chat-bubble-assistant">
+        Hello Analyst! I am your <strong>MiniSIEM X Assistant</strong>. I provide evidence-based event explanations, MITRE ATT&CK guidance, and automated incident triage briefings. How can I assist you?
+      </div>
+    </div>
+
+    <div class="assistant-input-box">
+      <input type="text" id="assistant-input" class="form-input" placeholder="Ask about an alert, incident, or MITRE technique..." onkeydown="if(event.key==='Enter') sendAssistantMessage();">
+      <button class="btn btn-primary" onclick="sendAssistantMessage()">
+        <i class="fa-solid fa-paper-plane"></i>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Attack Simulation Modal -->
+  <div id="simulation-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 style="font-size:1.15rem;font-weight:700;color:#fff;display:flex;align-items:center;gap:0.5rem;">
+          <i class="fa-solid fa-radiation" style="color:#ef4444;"></i> Synthetic Attack Scenario Simulator
+        </h3>
+        <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeSimulationModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1.25rem;">
+          Select a realistic attack simulation scenario. Synthetic logs will be injected through the active normalization pipeline, triggering real detection rules and incident correlation.
+        </p>
+
+        <div style="display:flex;flex-direction:column;gap:0.75rem;">
+          <button class="btn btn-outline" style="text-align:left;padding:0.85rem;justify-content:space-between;" onclick="triggerSimulation('brute_force')">
+            <div>
+              <strong style="color:#ef4444;"><i class="fa-solid fa-key"></i> 1. SSH Brute-Force Password Spraying</strong>
+              <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">6 rapid authentication failures against 'admin' from 198.51.100.24 (Triggers RULE-001 / MITRE T1110)</div>
+            </div>
+            <span class="badge badge-high">High</span>
+          </button>
+
+          <button class="btn btn-outline" style="text-align:left;padding:0.85rem;justify-content:space-between;" onclick="triggerSimulation('suspicious_login')">
+            <div>
+              <strong style="color:#f97316;"><i class="fa-solid fa-user-secret"></i> 2. Suspicious External Login</strong>
+              <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">Successful login from untrusted public IP 203.0.113.88 (Triggers RULE-002 / MITRE T1078)</div>
+            </div>
+            <span class="badge badge-medium">Medium</span>
+          </button>
+
+          <button class="btn btn-outline" style="text-align:left;padding:0.85rem;justify-content:space-between;" onclick="triggerSimulation('port_scan')">
+            <div>
+              <strong style="color:#eab308;"><i class="fa-solid fa-radar"></i> 3. Network Port Scan Sweep</strong>
+              <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">15 unique destination ports probed from 198.51.100.99 within 30s (Triggers RULE-003 / MITRE T1046)</div>
+            </div>
+            <span class="badge badge-medium">Medium</span>
+          </button>
+
+          <button class="btn btn-outline" style="text-align:left;padding:0.85rem;justify-content:space-between;" onclick="triggerSimulation('privilege_escalation')">
+            <div>
+              <strong style="color:#ef4444;"><i class="fa-solid fa-crown"></i> 4. Sudo Privilege Escalation</strong>
+              <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">Administrative elevation executed: 'sudo /bin/bash' as root (Triggers RULE-004 / MITRE T1548)</div>
+            </div>
+            <span class="badge badge-high">High</span>
+          </button>
+
+          <button class="btn btn-primary" style="text-align:left;padding:1rem;justify-content:space-between;background:linear-gradient(135deg,#b91c1c,#7c2d12);" onclick="triggerSimulation('account_compromise')">
+            <div>
+              <strong style="color:#fff;"><i class="fa-solid fa-skull-crossbones"></i> 5. Full Account Takeover & Compromise Chain</strong>
+              <div style="font-size:0.78rem;color:#fca5a5;margin-top:2px;">Password brute-forcing -> Valid Login -> Sudo elevation. Generates Correlated CRITICAL Incident (RULE-005)</div>
+            </div>
+            <span class="badge badge-critical">Critical</span>
+          </button>
+
+          <button class="btn btn-outline" style="text-align:left;padding:0.75rem;justify-content:space-between;" onclick="triggerSimulation('normal')">
+            <div>
+              <strong style="color:#10b981;"><i class="fa-solid fa-shield-check"></i> 6. Normal Baseline Activity</strong>
+              <div style="font-size:0.78rem;color:#94a3b8;margin-top:2px;">Legitimate authorized logins from internal subnets (Zero false alerts)</div>
+            </div>
+            <span class="badge badge-success">Clean</span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn btn-danger" onclick="resetSimulationData()">
+          <i class="fa-solid fa-trash-can"></i> Purge Demo Telemetry
+        </button>
+        <button class="btn btn-outline" onclick="closeSimulationModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/assistant.js"></script>
+  <script src="../js/dashboard.js"></script>
+</body>
+</html>
+

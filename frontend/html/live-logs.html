@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Log Monitoring | MiniSIEM X</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/logs.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <div class="sidebar-title">MiniSIEM X</div>
+          <div class="sidebar-tagline">SOC Intelligence</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-category">Monitoring</div>
+        <a href="dashboard.html" class="nav-link"><i class="fa-solid fa-chart-pie"></i> Overview</a>
+        <a href="live-logs.html" class="nav-link active"><i class="fa-solid fa-stream"></i> Live Log Monitoring</a>
+        <a href="alerts.html" class="nav-link"><i class="fa-solid fa-triangle-exclamation"></i> Threat Alerts</a>
+        <a href="incidents.html" class="nav-link"><i class="fa-solid fa-fire-flame-curved"></i> Incident Management</a>
+
+        <div class="nav-category">Environment</div>
+        <a href="sources.html" class="nav-link"><i class="fa-solid fa-server"></i> Log Sources</a>
+        <a href="assets.html" class="nav-link"><i class="fa-solid fa-network-wired"></i> Asset Inventory</a>
+        <a href="detection-rules.html" class="nav-link"><i class="fa-solid fa-code-branch"></i> Detection Rules</a>
+        <a href="threat-intelligence.html" class="nav-link"><i class="fa-solid fa-user-secret"></i> Threat Intelligence</a>
+
+        <div class="nav-category">Analytics & Admin</div>
+        <a href="reports.html" class="nav-link"><i class="fa-solid fa-file-shield"></i> Security Reports</a>
+        <a href="settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div>Engine v1.0.0-PROD</div>
+        <div style="color:var(--severity-success);margin-top:2px;">● Online & Streaming</div>
+      </div>
+    </aside>
+
+    <!-- Main Wrapper -->
+    <div class="main-wrapper">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Live Telemetry & Log Ingestion</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-outline" onclick="openManualIngestModal()">
+            <i class="fa-solid fa-plus"></i> Ingest Manual Event
+          </button>
+          <button class="btn btn-primary" onclick="openUploadModal()">
+            <i class="fa-solid fa-cloud-arrow-up"></i> Upload Log File
+          </button>
+          <div id="topbar-user-badge" class="badge badge-info">
+            <i class="fa-solid fa-user-shield"></i> Analyst
+          </div>
+          <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="handleLogout()">
+            <i class="fa-solid fa-power-off"></i>
+          </button>
+        </div>
+      </header>
+
+      <main class="content-container">
+        <!-- Logs Filtering Toolbar -->
+        <div class="logs-toolbar">
+          <div class="filter-group">
+            <div class="search-box">
+              <i class="fa-solid fa-magnifying-glass"></i>
+              <input type="text" id="log-search" class="form-input" placeholder="Search IP, username, raw text...">
+            </div>
+
+            <select id="log-source-filter" class="form-select" style="width:140px;">
+              <option value="">All Sources</option>
+              <option value="linux">Linux</option>
+              <option value="windows">Windows</option>
+              <option value="web">Web</option>
+              <option value="simulated">Simulated</option>
+            </select>
+
+            <select id="log-severity-filter" class="form-select" style="width:140px;">
+              <option value="">All Severities</option>
+              <option value="CRITICAL">Critical</option>
+              <option value="HIGH">High</option>
+              <option value="MEDIUM">Medium</option>
+              <option value="LOW">Low</option>
+              <option value="INFO">Info</option>
+            </select>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:0.75rem;">
+            <button class="btn btn-outline" onclick="loadLogs()">
+              <i class="fa-solid fa-rotate"></i> Refresh Feed
+            </button>
+          </div>
+        </div>
+
+        <!-- Log Events Table -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-responsive">
+            <table class="siem-table">
+              <thead>
+                <tr>
+                  <th>Timestamp (UTC)</th>
+                  <th>Source</th>
+                  <th>Event Type</th>
+                  <th>User</th>
+                  <th>Source IP</th>
+                  <th>Severity</th>
+                  <th>Inspect</th>
+                </tr>
+              </thead>
+              <tbody id="logs-table-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Raw Log Modal -->
+  <div id="raw-log-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 id="raw-modal-title" style="font-size:1.1rem;font-weight:700;color:#fff;">Raw Event Details</h3>
+        <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeRawLogModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="font-size:0.8rem;color:var(--accent-cyan);margin-bottom:0.4rem;font-weight:600;">VERBATIM RAW EVENT:</div>
+        <div id="raw-modal-content" class="raw-log-viewer"></div>
+
+        <div style="font-size:0.8rem;color:var(--accent-cyan);margin:1rem 0 0.4rem 0;font-weight:600;">METADATA & CONTEXT:</div>
+        <div id="raw-modal-meta" class="raw-log-viewer" style="max-height:150px;color:#cbd5e1;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeRawLogModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manual Ingest Modal -->
+  <div id="manual-ingest-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 style="font-size:1.1rem;font-weight:700;color:#fff;">Ingest Single Security Telemetry Event</h3>
+        <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeManualIngestModal()">&times;</button>
+      </div>
+      <form id="manual-log-form" onsubmit="submitManualLog(event)">
+        <div class="modal-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+            <div class="form-group">
+              <label class="form-label">Source System</label>
+              <select name="source" class="form-select" required>
+                <option value="linux">Linux Server</option>
+                <option value="windows">Windows Host</option>
+                <option value="web">Web Application</option>
+                <option value="custom">Custom API</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Event Type</label>
+              <input type="text" name="event_type" class="form-input" placeholder="e.g. auth_failure, sudo" required>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" name="username" class="form-input" placeholder="e.g. admin">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Source IP Address</label>
+              <input type="text" name="source_ip" class="form-input" placeholder="e.g. 198.51.100.24">
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+            <div class="form-group">
+              <label class="form-label">Destination IP</label>
+              <input type="text" name="destination_ip" class="form-input" placeholder="e.g. 10.0.0.1">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Destination Port</label>
+              <input type="number" name="destination_port" class="form-input" placeholder="e.g. 22">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Severity</label>
+              <select name="severity" class="form-select">
+                <option value="INFO">Info</option>
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH">High</option>
+                <option value="CRITICAL">Critical</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Raw Event Log String</label>
+            <textarea name="raw_event" class="form-textarea" rows="3" placeholder="sshd[1024]: Failed password for admin from 198.51.100.24..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeManualIngestModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Ingest & Detect</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Upload Log Modal -->
+  <div id="upload-log-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 style="font-size:1.1rem;font-weight:700;color:#fff;">Batch File Log Ingestion</h3>
+        <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeUploadModal()">&times;</button>
+      </div>
+      <form id="upload-log-form" onsubmit="handleFileUpload(event)">
+        <div class="modal-body">
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;">
+            Upload standard security log exports in <strong>JSON, JSONL, CSV</strong>, or plain syslog format. The parser automatically discovers fields and validates events.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label">Source Identifier</label>
+            <input type="text" id="upload-source-name" class="form-input" value="file_import" required>
+          </div>
+
+          <div class="dropzone" onclick="document.getElementById('log-file-input').click()">
+            <i class="fa-solid fa-file-arrow-up dropzone-icon"></i>
+            <div style="font-weight:600;font-size:0.95rem;color:#fff;">Select or Drag Log File Here</div>
+            <div style="font-size:0.75rem;color:var(--text-muted);margin-top:4px;">Supported: .json, .jsonl, .csv, .log, .txt</div>
+            <input type="file" id="log-file-input" style="display:none;" onchange="document.getElementById('selected-file-name').innerText = this.files[0]?.name || ''">
+            <div id="selected-file-name" style="margin-top:0.75rem;color:#38bdf8;font-weight:600;font-size:0.85rem;"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeUploadModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-cloud-arrow-up"></i> Start Ingestion</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/logs.js"></script>
+</body>
+</html>
+

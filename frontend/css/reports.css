@@ -1,0 +1,67 @@
+/* MiniSIEM X Reports & Compliance Styles */
+.report-summary-header {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.05));
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.report-section {
+  margin-bottom: 2rem;
+}
+
+.report-section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.compliance-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+}
+
+.compliance-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-sm);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Printable PDF View */
+@media print {
+  body {
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+  .sidebar, .topbar, .floating-assistant-btn, .btn-sim, .no-print {
+    display: none !important;
+  }
+  .main-wrapper {
+    margin-left: 0 !important;
+  }
+  .card, .siem-table, .report-summary-header {
+    border: 1px solid #ccc !important;
+    background-color: #fff !important;
+    color: #000 !important;
+  }
+  .siem-table th, .siem-table td {
+    color: #000 !important;
+    border-color: #ddd !important;
+  }
+}
+

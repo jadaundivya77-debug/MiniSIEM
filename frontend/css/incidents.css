@@ -1,0 +1,72 @@
+/* MiniSIEM X Incident Management Styles */
+.incident-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.incident-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  position: relative;
+}
+
+.incident-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.incident-card.card-critical {
+  border-left: 4px solid var(--severity-critical);
+}
+
+.incident-card.card-high {
+  border-left: 4px solid var(--severity-high);
+}
+
+.incident-card.card-medium {
+  border-left: 4px solid var(--severity-medium);
+}
+
+.incident-card.card-low {
+  border-left: 4px solid var(--severity-low);
+}
+
+.incident-num {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-cyan);
+  font-weight: 600;
+}
+
+.incident-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.35;
+}
+
+.incident-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.incident-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-color);
+}
+

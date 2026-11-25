@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Threat Intelligence & Whitelist | MiniSIEM X</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <div class="sidebar-title">MiniSIEM X</div>
+          <div class="sidebar-tagline">SOC Intelligence</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-category">Monitoring</div>
+        <a href="dashboard.html" class="nav-link"><i class="fa-solid fa-chart-pie"></i> Overview</a>
+        <a href="live-logs.html" class="nav-link"><i class="fa-solid fa-stream"></i> Live Log Monitoring</a>
+        <a href="alerts.html" class="nav-link"><i class="fa-solid fa-triangle-exclamation"></i> Threat Alerts</a>
+        <a href="incidents.html" class="nav-link"><i class="fa-solid fa-fire-flame-curved"></i> Incident Management</a>
+
+        <div class="nav-category">Environment</div>
+        <a href="sources.html" class="nav-link"><i class="fa-solid fa-server"></i> Log Sources</a>
+        <a href="assets.html" class="nav-link"><i class="fa-solid fa-network-wired"></i> Asset Inventory</a>
+        <a href="detection-rules.html" class="nav-link"><i class="fa-solid fa-code-branch"></i> Detection Rules</a>
+        <a href="threat-intelligence.html" class="nav-link active"><i class="fa-solid fa-user-secret"></i> Threat Intelligence</a>
+
+        <div class="nav-category">Analytics & Admin</div>
+        <a href="reports.html" class="nav-link"><i class="fa-solid fa-file-shield"></i> Security Reports</a>
+        <a href="settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div>Engine v1.0.0-PROD</div>
+        <div style="color:var(--severity-success);margin-top:2px;">● Online & Streaming</div>
+      </div>
+    </aside>
+
+    <div class="main-wrapper">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Threat Intelligence & IP Reputation</h1>
+        </div>
+        <div class="topbar-right">
+          <div id="topbar-user-badge" class="badge badge-info">
+            <i class="fa-solid fa-user-shield"></i> Analyst
+          </div>
+          <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="handleLogout()">
+            <i class="fa-solid fa-power-off"></i>
+          </button>
+        </div>
+      </header>
+
+      <main class="content-container">
+        <!-- Interactive IP Reputation Lookup Tool -->
+        <div class="card" style="margin-bottom:1.5rem;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-magnifying-glass-location" style="color:#06b6d4;"></i> Instant IP Intelligence Lookup</span>
+            <span class="badge badge-info">Deterministic Reputation Engine</span>
+          </div>
+          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:1rem;">
+            Query external or internal IP addresses against MiniSIEM X's reputation dataset, internal whitelist, and local alert telemetry history.
+          </p>
+
+          <div style="display:flex;gap:0.75rem;max-width:600px;">
+            <input type="text" id="intel-ip-input" class="form-input" placeholder="e.g. 198.51.100.24 or 10.0.0.1" onkeydown="if(event.key==='Enter') queryIPIntel()">
+            <button class="btn btn-primary" onclick="queryIPIntel()">
+              <i class="fa-solid fa-radar"></i> Lookup Reputation
+            </button>
+          </div>
+
+          <!-- Intel Results Box -->
+          <div id="intel-result-box" style="display:none;margin-top:1.25rem;background:var(--bg-input);padding:1.25rem;border-radius:var(--radius-sm);border-left:4px solid var(--accent-indigo);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+              <h3 id="intel-res-ip" class="mono" style="font-size:1.15rem;color:#fff;">198.51.100.24</h3>
+              <div id="intel-res-badge"></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:1rem;font-size:0.85rem;">
+              <div><strong>Threat Score:</strong> <span id="intel-res-score" style="color:#ef4444;font-weight:700;"></span></div>
+              <div><strong>Category:</strong> <span id="intel-res-cat" style="color:#cbd5e1;"></span></div>
+              <div><strong>Origin ASN:</strong> <span id="intel-res-asn" style="color:#cbd5e1;"></span></div>
+              <div><strong>Whitelist Status:</strong> <span id="intel-res-white" style="color:#cbd5e1;"></span></div>
+            </div>
+
+            <div style="margin-top:0.75rem;font-size:0.82rem;color:var(--text-secondary);" id="intel-res-desc"></div>
+            <div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border-color);font-size:0.8rem;color:#38bdf8;" id="intel-res-history"></div>
+          </div>
+        </div>
+
+        <!-- Trusted IP Whitelist Table -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-list-check" style="color:#10b981;"></i> Internal & Trusted IP Whitelist</span>
+            <button class="btn btn-primary" style="padding:0.35rem 0.85rem;font-size:0.78rem;" onclick="openAddTrustedIPModal()">
+              <i class="fa-solid fa-plus"></i> Add Trusted IP
+            </button>
+          </div>
+          <div class="table-responsive">
+            <table class="siem-table">
+              <thead>
+                <tr>
+                  <th>Whitelisted IP Address</th>
+                  <th>Description / Purpose</th>
+                  <th>Added By</th>
+                  <th>Added Date</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="trusted-ips-table-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Add Trusted IP Modal -->
+  <div id="add-trusted-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 style="font-size:1.1rem;font-weight:700;color:#fff;">Add Trusted IP Address</h3>
+        <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeAddTrustedIPModal()">&times;</button>
+      </div>
+      <form onsubmit="submitAddTrustedIP(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">IP Address (IPv4 or IPv6)</label>
+            <input type="text" id="new-trusted-ip" class="form-input" placeholder="e.g. 192.168.1.50" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description / Business Justification</label>
+            <input type="text" id="new-trusted-desc" class="form-input" placeholder="e.g. Corporate VPN Gateway Endpoint" required>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeAddTrustedIPModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-shield-check"></i> Whitelist IP</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      checkAuth();
+      loadTrustedIPs();
+
+      // Check if IP is in URL parameter
+      const params = new URLSearchParams(window.location.search);
+      const urlIp = params.get("ip");
+      if (urlIp) {
+        document.getElementById("intel-ip-input").value = urlIp;
+        queryIPIntel();
+      }
+    });
+
+    async function queryIPIntel() {
+      const ip = document.getElementById("intel-ip-input").value.trim();
+      if (!ip) return;
+
+      try {
+        const data = await apiFetch(`/threat-intel/lookup/${encodeURIComponent(ip)}`);
+        if (!data) return;
+
+        document.getElementById("intel-res-ip").innerText = data.ip;
+        document.getElementById("intel-res-score").innerText = `${data.intelligence.threat_score} / 100`;
+        document.getElementById("intel-res-cat").innerText = data.intelligence.category;
+        document.getElementById("intel-res-asn").innerText = `${data.intelligence.asn} (${data.intelligence.country})`;
+        document.getElementById("intel-res-white").innerText = data.is_trusted ? "WHITELISTED (Trusted)" : "NOT WHITELISTED (External)";
+        document.getElementById("intel-res-desc").innerText = data.intelligence.description;
+
+        let badge = '<span class="badge badge-success">BENIGN</span>';
+        if (data.intelligence.reputation === "MALICIOUS") badge = '<span class="badge badge-critical">MALICIOUS</span>';
+        else if (data.intelligence.reputation === "SUSPICIOUS") badge = '<span class="badge badge-high">SUSPICIOUS</span>';
+        else if (data.intelligence.reputation === "UNTRUSTED") badge = '<span class="badge badge-medium">UNTRUSTED</span>';
+        document.getElementById("intel-res-badge").innerHTML = badge;
+
+        document.getElementById("intel-res-history").innerText = 
+          `Local Telemetry History: ${data.local_history.total_events_observed} events observed on network, triggering ${data.local_history.total_alerts_triggered} security alerts.`;
+
+        document.getElementById("intel-result-box").style.display = "block";
+      } catch (err) {
+        showToast("Intel lookup failed: " + err.message, "danger");
+      }
+    }
+
+    async function loadTrustedIPs() {
+      const tbody = document.getElementById("trusted-ips-table-body");
+      try {
+        const ips = await apiFetch("/threat-intel/trusted-ips");
+        if (!ips || ips.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:1.5rem;color:#64748b;">No trusted IPs configured.</td></tr>`;
+          return;
+        }
+        let html = "";
+        ips.forEach(t => {
+          html += `<tr>
+            <td class="mono" style="color:#10b981;"><strong>${escapeHTML(t.ip_address)}</strong></td>
+            <td>${escapeHTML(t.description || "-")}</td>
+            <td>${escapeHTML(t.added_by)}</td>
+            <td class="mono">${formatDate(t.created_at)}</td>
+            <td>
+              <button class="btn btn-outline" style="padding:0.2rem 0.5rem;color:#ef4444;" onclick="removeTrustedIP(${t.id})">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </td>
+          </tr>`;
+        });
+        tbody.innerHTML = html;
+      } catch (err) {
+        showToast("Error loading trusted IPs: " + err.message, "danger");
+      }
+    }
+
+    function openAddTrustedIPModal() {
+      document.getElementById("add-trusted-modal")?.classList.add("active");
+    }
+    function closeAddTrustedIPModal() {
+      document.getElementById("add-trusted-modal")?.classList.remove("active");
+    }
+
+    async function submitAddTrustedIP(e) {
+      e.preventDefault();
+      const ip = document.getElementById("new-trusted-ip").value.trim();
+      const desc = document.getElementById("new-trusted-desc").value.trim();
+
+      try {
+        await apiFetch("/threat-intel/trusted-ips", {
+          method: "POST",
+          body: JSON.stringify({ ip_address: ip, description: desc })
+        });
+        showToast(`IP ${ip} added to trusted whitelist!`, "success");
+        closeAddTrustedIPModal();
+        loadTrustedIPs();
+      } catch (err) {
+        showToast("Failed to whitelist IP: " + err.message, "danger");
+      }
+    }
+
+    async function removeTrustedIP(id) {
+      if (!confirm("Remove this IP address from the trusted whitelist?")) return;
+      try {
+        await apiFetch(`/threat-intel/trusted-ips/${id}`, { method: "DELETE" });
+        showToast("IP removed from whitelist.", "success");
+        loadTrustedIPs();
+      } catch (err) {
+        showToast("Error removing IP: " + err.message, "danger");
+      }
+    }
+  </script>
+</body>
+</html>
+

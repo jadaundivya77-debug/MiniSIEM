@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Log Source Health Monitoring | MiniSIEM X</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <div class="sidebar-title">MiniSIEM X</div>
+          <div class="sidebar-tagline">SOC Intelligence</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-category">Monitoring</div>
+        <a href="dashboard.html" class="nav-link"><i class="fa-solid fa-chart-pie"></i> Overview</a>
+        <a href="live-logs.html" class="nav-link"><i class="fa-solid fa-stream"></i> Live Log Monitoring</a>
+        <a href="alerts.html" class="nav-link"><i class="fa-solid fa-triangle-exclamation"></i> Threat Alerts</a>
+        <a href="incidents.html" class="nav-link"><i class="fa-solid fa-fire-flame-curved"></i> Incident Management</a>
+
+        <div class="nav-category">Environment</div>
+        <a href="sources.html" class="nav-link active"><i class="fa-solid fa-server"></i> Log Sources</a>
+        <a href="assets.html" class="nav-link"><i class="fa-solid fa-network-wired"></i> Asset Inventory</a>
+        <a href="detection-rules.html" class="nav-link"><i class="fa-solid fa-code-branch"></i> Detection Rules</a>
+        <a href="threat-intelligence.html" class="nav-link"><i class="fa-solid fa-user-secret"></i> Threat Intelligence</a>
+
+        <div class="nav-category">Analytics & Admin</div>
+        <a href="reports.html" class="nav-link"><i class="fa-solid fa-file-shield"></i> Security Reports</a>
+        <a href="settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div>Engine v1.0.0-PROD</div>
+        <div style="color:var(--severity-success);margin-top:2px;">● Online & Streaming</div>
+      </div>
+    </aside>
+
+    <div class="main-wrapper">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Log Sources & Forwarder Health</h1>
+        </div>
+        <div class="topbar-right">
+          <button class="btn btn-primary" onclick="openAddSourceModal()">
+            <i class="fa-solid fa-plus"></i> Register Log Source
+          </button>
+          <div id="topbar-user-badge" class="badge badge-info">
+            <i class="fa-solid fa-user-shield"></i> Analyst
+          </div>
+          <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="handleLogout()">
+            <i class="fa-solid fa-power-off"></i>
+          </button>
+        </div>
+      </header>
+
+      <main class="content-container">
+        <!-- Sources Overview Card -->
+        <div class="card" style="margin-bottom:1.5rem;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-heart-pulse" style="color:#10b981;"></i> Ingestion Pipeline & Heartbeat Monitor</span>
+            <span class="badge badge-info">15-minute stale heartbeat threshold</span>
+          </div>
+          <p style="font-size:0.85rem;color:var(--text-secondary);line-height:1.5;">
+            MiniSIEM X dynamically tracks forwarder telemetry. A connected forwarder that fails to deliver security events beyond 15 minutes is automatically flagged as <strong style="color:#eab308;">STALE</strong> to ensure blind spots are detected immediately.
+          </p>
+        </div>
+
+        <!-- Sources Table -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-responsive">
+            <table class="siem-table">
+              <thead>
+                <tr>
+                  <th>Source Name</th>
+                  <th>Type</th>
+                  <th>Hostname</th>
+                  <th>Health Status</th>
+                  <th>Last Event Received</th>
+                  <th>Total Events</th>
+                  <th>Errors</th>
+                </tr>
+              </thead>
+              <tbody id="sources-table-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Register Source Modal -->
+  <div id="add-source-modal" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h3 style="font-size:1.1rem;font-weight:700;color:#fff;">Register New Ingestion Source</h3>
+        <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeAddSourceModal()">&times;</button>
+      </div>
+      <form id="add-source-form" onsubmit="submitAddSource(event)">
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Source Display Name</label>
+            <input type="text" name="name" class="form-input" placeholder="e.g. Perimeter Firewall Syslog" required>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Source Type</label>
+            <select name="source_type" class="form-select" required>
+              <option value="LINUX">Linux Host (Syslog / Auth)</option>
+              <option value="WINDOWS">Windows Event Forwarder (WEF)</option>
+              <option value="WEB">Web Application Gateway (Nginx/Apache)</option>
+              <option value="API">Custom API / Webhook Collector</option>
+              <option value="FILE">Static File Import</option>
+            </select>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+            <div class="form-group">
+              <label class="form-label">Hostname</label>
+              <input type="text" name="hostname" class="form-input" placeholder="e.g. fw01.corp">
+            </div>
+            <div class="form-group">
+              <label class="form-label">IP Address</label>
+              <input type="text" name="ip_address" class="form-input" placeholder="e.g. 192.168.1.1">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeAddSourceModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="fa-solid fa-plus"></i> Register Source</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/sources.js"></script>
+</body>
+</html>
+

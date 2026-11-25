@@ -1,0 +1,169 @@
+/* MiniSIEM X Dashboard Specific Styles */
+
+/* KPI Metric Cards Grid */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.kpi-card {
+  background-color: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-focus);
+}
+
+.kpi-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--accent-indigo), var(--accent-purple));
+}
+
+.kpi-card.kpi-danger::after {
+  background: linear-gradient(90deg, var(--severity-critical), var(--severity-high));
+}
+
+.kpi-card.kpi-warning::after {
+  background: linear-gradient(90deg, var(--severity-high), var(--severity-medium));
+}
+
+.kpi-card.kpi-success::after {
+  background: linear-gradient(90deg, var(--severity-success), var(--accent-cyan));
+}
+
+.kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.kpi-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kpi-icon {
+  font-size: 1.1rem;
+  color: var(--accent-indigo);
+}
+
+.kpi-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.kpi-subtext {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* Charts Grid */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.charts-grid-secondary {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.chart-card {
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-wrapper {
+  position: relative;
+  flex: 1;
+  width: 100%;
+  min-height: 220px;
+}
+
+/* Dashboard Bottom Grid: Timeline + Risky Assets */
+.dashboard-details-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 1.25rem;
+}
+
+/* Timeline Activity Feed */
+.timeline-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.65rem 0.85rem;
+  background-color: var(--bg-input);
+  border-radius: var(--radius-sm);
+  border-left: 3px solid var(--accent-indigo);
+  font-size: 0.82rem;
+}
+
+.timeline-item.item-critical {
+  border-left-color: var(--severity-critical);
+}
+
+.timeline-item.item-high {
+  border-left-color: var(--severity-high);
+}
+
+.timeline-time {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.timeline-desc {
+  flex: 1;
+  color: var(--text-primary);
+}
+
+/* Engine Status Widget */
+.engine-status-box {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(6, 182, 212, 0.05));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+

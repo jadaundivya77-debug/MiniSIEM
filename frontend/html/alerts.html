@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Threat Alerts & Triage | MiniSIEM X</title>
+  <link rel="stylesheet" href="../css/global.css">
+  <link rel="stylesheet" href="../css/alerts.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo-icon"><i class="fa-solid fa-shield-halved"></i></div>
+        <div>
+          <div class="sidebar-title">MiniSIEM X</div>
+          <div class="sidebar-tagline">SOC Intelligence</div>
+        </div>
+      </div>
+      <nav class="sidebar-nav">
+        <div class="nav-category">Monitoring</div>
+        <a href="dashboard.html" class="nav-link"><i class="fa-solid fa-chart-pie"></i> Overview</a>
+        <a href="live-logs.html" class="nav-link"><i class="fa-solid fa-stream"></i> Live Log Monitoring</a>
+        <a href="alerts.html" class="nav-link active"><i class="fa-solid fa-triangle-exclamation"></i> Threat Alerts</a>
+        <a href="incidents.html" class="nav-link"><i class="fa-solid fa-fire-flame-curved"></i> Incident Management</a>
+
+        <div class="nav-category">Environment</div>
+        <a href="sources.html" class="nav-link"><i class="fa-solid fa-server"></i> Log Sources</a>
+        <a href="assets.html" class="nav-link"><i class="fa-solid fa-network-wired"></i> Asset Inventory</a>
+        <a href="detection-rules.html" class="nav-link"><i class="fa-solid fa-code-branch"></i> Detection Rules</a>
+        <a href="threat-intelligence.html" class="nav-link"><i class="fa-solid fa-user-secret"></i> Threat Intelligence</a>
+
+        <div class="nav-category">Analytics & Admin</div>
+        <a href="reports.html" class="nav-link"><i class="fa-solid fa-file-shield"></i> Security Reports</a>
+        <a href="settings.html" class="nav-link"><i class="fa-solid fa-gear"></i> Settings</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div>Engine v1.0.0-PROD</div>
+        <div style="color:var(--severity-success);margin-top:2px;">● Online & Streaming</div>
+      </div>
+    </aside>
+
+    <div class="main-wrapper">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title">Threat Alerts & Detection Triage</h1>
+        </div>
+        <div class="topbar-right">
+          <div id="topbar-user-badge" class="badge badge-info">
+            <i class="fa-solid fa-user-shield"></i> Analyst
+          </div>
+          <button class="btn btn-outline" style="padding:0.4rem 0.75rem;" onclick="handleLogout()">
+            <i class="fa-solid fa-power-off"></i>
+          </button>
+        </div>
+      </header>
+
+      <main class="content-container">
+        <!-- Filter Toolbar -->
+        <div class="card" style="margin-bottom:1.25rem;padding:1rem;">
+          <div style="display:flex;flex-wrap:wrap;gap:1rem;justify-content:space-between;align-items:center;">
+            <div style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:center;">
+              <input type="text" id="alert-search" class="form-input" style="width:240px;" placeholder="Search IP, user, rule...">
+
+              <select id="alert-status-filter" class="form-select" style="width:150px;">
+                <option value="">All Statuses</option>
+                <option value="OPEN">Open</option>
+                <option value="INVESTIGATING">Investigating</option>
+                <option value="RESOLVED">Resolved</option>
+                <option value="FALSE_POSITIVE">False Positive</option>
+              </select>
+
+              <select id="alert-severity-filter" class="form-select" style="width:150px;">
+                <option value="">All Severities</option>
+                <option value="CRITICAL">Critical</option>
+                <option value="HIGH">High</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="LOW">Low</option>
+              </select>
+            </div>
+
+            <button class="btn btn-outline" onclick="loadAlerts()">
+              <i class="fa-solid fa-rotate"></i> Refresh Alerts
+            </button>
+          </div>
+        </div>
+
+        <!-- Alerts Table -->
+        <div class="card" style="padding:0;overflow:hidden;">
+          <div class="table-responsive">
+            <table class="siem-table">
+              <thead>
+                <tr>
+                  <th>Alert ID</th>
+                  <th>Alert Title</th>
+                  <th>Severity</th>
+                  <th>Status</th>
+                  <th>Source IP</th>
+                  <th>Target User</th>
+                  <th>MITRE ID</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="alerts-table-body">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Explainable Alert Detail Drawer -->
+  <aside id="alert-detail-drawer" class="alert-drawer">
+    <div class="drawer-header">
+      <div>
+        <div id="drawer-alert-id" class="mono" style="font-size:0.75rem;color:var(--accent-cyan);">#ALT-000</div>
+        <h2 id="drawer-alert-title" style="font-size:1.1rem;font-weight:700;color:#fff;margin-top:2px;">Alert Title</h2>
+      </div>
+      <button class="btn btn-outline" style="padding:0.2rem 0.5rem;" onclick="closeAlertDrawer()">&times;</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- Quick Status Strip -->
+      <div style="display:flex;gap:0.75rem;align-items:center;">
+        <div id="drawer-alert-severity"></div>
+        <div id="drawer-alert-status"></div>
+        <div class="mono" id="drawer-alert-time" style="font-size:0.75rem;color:var(--text-muted);margin-left:auto;"></div>
+      </div>
+
+      <!-- Telemetry Context Grid -->
+      <div class="drawer-section" style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;font-size:0.8rem;">
+        <div><strong>Source IP:</strong> <span class="mono" id="drawer-alert-ip" style="color:#38bdf8;"></span></div>
+        <div><strong>Target User:</strong> <span id="drawer-alert-user" style="color:#cbd5e1;"></span></div>
+        <div><strong>Affected Asset:</strong> <span id="drawer-alert-asset" style="color:#cbd5e1;"></span></div>
+        <div><strong>Rule:</strong> <span id="drawer-alert-rule" style="color:#cbd5e1;"></span></div>
+      </div>
+
+      <!-- MITRE ATT&CK Mapping Section -->
+      <div class="drawer-section">
+        <div class="drawer-section-title"><i class="fa-solid fa-crosshairs"></i> MITRE ATT&CK Framework Mapping</div>
+        <div style="display:flex;gap:0.75rem;align-items:center;margin-top:0.4rem;">
+          <span class="badge badge-primary" id="drawer-mitre-tech">T1110</span>
+          <span class="badge badge-info" id="drawer-mitre-tactic">Credential Access</span>
+        </div>
+      </div>
+
+      <!-- UNIQUE FEATURE 1: EXPLAINABILITY BLOCK -->
+      <div class="drawer-section">
+        <div class="drawer-section-title"><i class="fa-solid fa-brain" style="color:#a78bfa;"></i> Autonomous Detection Explanation</div>
+        <div id="drawer-explanation" style="font-size:0.82rem;line-height:1.6;color:var(--text-primary);">
+          <!-- Dynamically populated explainable text -->
+        </div>
+      </div>
+
+      <!-- Standard Operating Procedure Steps -->
+      <div class="drawer-section">
+        <div class="drawer-section-title"><i class="fa-solid fa-list-check" style="color:#34d399;"></i> Recommended SOC Investigation Plan</div>
+        <div id="drawer-sop" style="font-size:0.82rem;line-height:1.6;color:var(--text-secondary);">
+          <!-- Dynamically populated investigation steps -->
+        </div>
+      </div>
+
+      <!-- Evidence JSON Box -->
+      <div class="drawer-section">
+        <div class="drawer-section-title"><i class="fa-solid fa-database"></i> Verified Telemetry Evidence</div>
+        <pre id="drawer-evidence" class="evidence-box"></pre>
+      </div>
+
+      <!-- Status Update Form -->
+      <div class="drawer-section">
+        <div class="drawer-section-title"><i class="fa-solid fa-pen-to-square"></i> Analyst Triage Actions</div>
+        <input type="hidden" id="drawer-update-alert-id">
+        <div class="form-group" style="margin-top:0.5rem;">
+          <label class="form-label">Update Status</label>
+          <select id="drawer-status-select" class="form-select">
+            <option value="OPEN">Open (Requires Triage)</option>
+            <option value="INVESTIGATING">Investigating (Work in Progress)</option>
+            <option value="RESOLVED">Resolved (Remediated)</option>
+            <option value="FALSE_POSITIVE">False Positive (Suppressed)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Analyst Remediation Notes</label>
+          <textarea id="drawer-notes-input" class="form-textarea" rows="2" placeholder="Record investigation findings or ticket IDs..."></textarea>
+        </div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="submitAlertStatusUpdate()">
+          <i class="fa-solid fa-check"></i> Save Alert State
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <script src="../js/config.js"></script>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script src="../js/alerts.js"></script>
+</body>
+</html>
+
