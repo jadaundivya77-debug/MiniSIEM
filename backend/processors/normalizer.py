@@ -64,11 +64,12 @@ class EventNormalizer:
             raw_dict.get("username") or 
             raw_dict.get("user") or 
             raw_dict.get("TargetUserName") or 
+            raw_dict.get("SubjectUserName") or
             raw_dict.get("AccountName") or 
             raw_dict.get("account")
         )
         username = None
-        if raw_user and str(raw_user).strip() not in ["-", "N/A", "null", "None"]:
+        if raw_user and str(raw_user).strip() not in ["-", "N/A", "null", "None", "(unknown)"]:
             username = sanitize_string(str(raw_user), max_len=100)
 
         # 5. IP Addresses
@@ -81,7 +82,7 @@ class EventNormalizer:
             raw_dict.get("IpAddress")
         )
         source_ip = None
-        if raw_src_ip and is_valid_ip(str(raw_src_ip)):
+        if raw_src_ip and str(raw_src_ip).strip() not in ["-", "N/A", "null", "None", "LOCAL"] and is_valid_ip(str(raw_src_ip)):
             source_ip = str(raw_src_ip).strip()
 
         raw_dst_ip = (
@@ -111,7 +112,10 @@ class EventNormalizer:
             except Exception:
                 pass
 
-        # 7. Event Type Canonicalization
+        # 7. Event Type Canonicalization (check explicit EventID in payload/metadata too)
+        meta_obj = raw_dict.get("metadata") if isinstance(raw_dict.get("metadata"), dict) else {}
+        win_event_id = str(raw_dict.get("EventID") or raw_dict.get("event_id") or meta_obj.get("EventID") or "").strip()
+
         raw_type = str(
             raw_dict.get("event_type") or 
             raw_dict.get("action") or 
@@ -120,15 +124,15 @@ class EventNormalizer:
             "generic_event"
         ).lower().strip()
 
-        if any(w in raw_type for w in ["fail", "invalid", "denied", "4625"]):
+        if win_event_id == "4625" or any(w in raw_type for w in ["fail", "invalid", "denied", "4625"]):
             event_type = "auth_failure"
-        elif any(w in raw_type for w in ["success", "accept", "logon", "4624"]):
+        elif win_event_id == "4624" or any(w in raw_type for w in ["success", "accept", "logon", "4624"]):
             event_type = "auth_success"
-        elif any(w in raw_type for w in ["sudo", "elevat", "privilege", "4672", "root"]):
+        elif win_event_id == "4672" or any(w in raw_type for w in ["sudo", "elevat", "privilege", "4672", "root"]):
             event_type = "privilege_escalation"
         elif any(w in raw_type for w in ["scan", "probe", "syn"]):
             event_type = "port_scan"
-        elif any(w in raw_type for w in ["useradd", "account_created", "4720"]):
+        elif win_event_id == "4720" or any(w in raw_type for w in ["useradd", "account_created", "4720"]):
             event_type = "account_created"
         else:
             event_type = raw_type
@@ -153,14 +157,31 @@ class EventNormalizer:
         # 9. Raw Event Preservation
         raw_event = str(raw_dict.get("raw_event") or raw_dict)
 
-        # 10. Metadata JSON
+        # 10. Metadata JSON, EventRecordID & Explicit Origin Classification
         meta = raw_dict.get("metadata") or {}
         if not isinstance(meta, dict):
             meta = {"context": str(meta)}
         # Preserve original extras
         for k, v in raw_dict.items():
-            if k not in ["timestamp", "source", "hostname", "event_type", "username", "source_ip", "destination_ip", "destination_port", "severity", "raw_event", "metadata", "is_demo"]:
+            if k not in ["timestamp", "source", "hostname", "event_type", "username", "source_ip", "destination_ip", "destination_port", "severity", "raw_event", "metadata", "is_demo", "origin_type"]:
                 meta[k] = v
+
+        raw_rec_id = meta.get("EventRecordID") or raw_dict.get("event_record_id")
+        event_record_id = None
+        if raw_rec_id is not None and str(raw_rec_id).isdigit():
+            event_record_id = int(raw_rec_id)
+
+        final_is_demo = bool(is_demo or raw_dict.get("is_demo", False))
+        explicit_origin = raw_dict.get("origin_type")
+        if final_is_demo or source == "simulated":
+            origin_type = "SIMULATED"
+            final_is_demo = True
+        elif explicit_origin:
+            origin_type = sanitize_string(str(explicit_origin), max_len=40).upper()
+        elif source == "windows" and (meta.get("collector") == "windows_event_log" or event_record_id is not None):
+            origin_type = "REAL_WINDOWS"
+        else:
+            origin_type = "INGESTED_API"
 
         return {
             "timestamp": norm_timestamp,
@@ -174,6 +195,8 @@ class EventNormalizer:
             "severity": severity,
             "raw_event": raw_event,
             "metadata_json": safe_json_dumps(meta),
-            "is_demo": bool(is_demo or raw_dict.get("is_demo", False))
+            "event_record_id": event_record_id,
+            "origin_type": origin_type,
+            "is_demo": final_is_demo,
         }
 

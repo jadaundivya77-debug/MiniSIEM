@@ -9,24 +9,64 @@ from datetime import datetime, timezone, timedelta
 
 from backend.database import get_db
 from backend.models import LogEvent, Alert, Incident, LogSource, Asset, DetectionRule
+from backend.routes.sources import refresh_source_health
 
 router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
 
 @router.get("/stats")
 def get_dashboard_stats(db: Session = Depends(get_db)):
     """Computes live SOC KPI metrics, severity breakdowns, and threat rankings."""
+    sources = db.query(LogSource).all()
+    refresh_source_health(sources)
+    db.commit()
+
     total_events = db.query(LogEvent).count()
     total_alerts = db.query(Alert).count()
     critical_incidents = db.query(Incident).filter(Incident.severity == "CRITICAL").count()
-    active_sources = db.query(LogSource).filter(LogSource.status.in_(["CONNECTED", "DEMO"])).count()
+    active_sources = sum(1 for s in sources if s.status in ("CONNECTED", "DEMO"))
     open_incidents = db.query(Incident).filter(Incident.status.in_(["OPEN", "INVESTIGATING"])).count()
 
     # Events processed today (last 24h)
     yesterday = datetime.now(timezone.utc) - timedelta(hours=24)
     events_today = db.query(LogEvent).filter(LogEvent.created_at >= yesterday).count()
 
-    # Check if demo data exists
-    has_demo_events = db.query(LogEvent).filter(LogEvent.is_demo == True).first() is not None
+    # Check real vs demo data breakdown
+    demo_events_count = db.query(LogEvent).filter(LogEvent.is_demo == True).count()
+    real_windows_events_count = db.query(LogEvent).filter(LogEvent.origin_type == "REAL_WINDOWS").count()
+    real_events_count = total_events - demo_events_count
+    demo_alerts_count = db.query(Alert).filter(Alert.is_demo == True).count()
+    real_alerts_count = total_alerts - demo_alerts_count
+    has_demo_events = demo_events_count > 0
+
+    win_src = next((s for s in sources if s.source_type == "WINDOWS"), None)
+    collector_status = {
+        "status": win_src.status if win_src else "DISCONNECTED",
+        "hostname": win_src.hostname if win_src else None,
+        "last_heartbeat_at": win_src.last_heartbeat_at.isoformat() if win_src and win_src.last_heartbeat_at else None,
+        "last_event_at": win_src.last_event_at.isoformat() if win_src and win_src.last_event_at else None,
+        "last_error": win_src.last_error if win_src else None,
+        "pending_events": win_src.pending_events if win_src else 0,
+        "total_events": win_src.total_events if win_src else 0,
+    }
+
+    # Real 60-minute event volume buckets (6 x 10-minute buckets)
+    now_utc = datetime.now(timezone.utc)
+    recent_logs = db.query(LogEvent.created_at).filter(
+        LogEvent.created_at >= now_utc - timedelta(minutes=60)
+    ).all()
+    bucket_counts = [0] * 6
+    for (created_dt,) in recent_logs:
+        if created_dt is None:
+            continue
+        if created_dt.tzinfo is None:
+            created_dt = created_dt.replace(tzinfo=timezone.utc)
+        age_mins = max(0.0, (now_utc - created_dt).total_seconds() / 60.0)
+        idx = min(5, max(0, 5 - int(age_mins // 10)))
+        bucket_counts[idx] += 1
+    events_timeline = [
+        {"label": label, "count": count}
+        for label, count in zip(["-50m", "-40m", "-30m", "-20m", "-10m", "Now"], bucket_counts)
+    ]
 
     # Severity distribution
     sev_query = db.query(Alert.severity, func.count(Alert.id)).group_by(Alert.severity).all()
@@ -78,6 +118,13 @@ def get_dashboard_stats(db: Session = Depends(get_db)):
         "active_sources": active_sources,
         "open_incidents": open_incidents,
         "events_processed_today": events_today,
+        "real_events_count": real_events_count,
+        "real_windows_events_count": real_windows_events_count,
+        "demo_events_count": demo_events_count,
+        "real_alerts_count": real_alerts_count,
+        "demo_alerts_count": demo_alerts_count,
+        "collector_status": collector_status,
+        "events_timeline": events_timeline,
         "is_demo": has_demo_events,
         "alerts_by_severity": alerts_by_sev,
         "incidents_by_status": incidents_by_status,
@@ -107,6 +154,8 @@ def get_dashboard_timeline(db: Session = Depends(get_db)):
             "title": a.title,
             "severity": a.severity,
             "source_ip": a.source_ip,
+            "origin_type": a.origin_type,
+            "is_demo": a.is_demo,
             "timestamp": a.created_at.isoformat(),
             "rule_id": a.rule_id
         })
@@ -117,6 +166,8 @@ def get_dashboard_timeline(db: Session = Depends(get_db)):
             "title": f"[{inc.incident_number}] {inc.title}",
             "severity": inc.severity,
             "source_ip": None,
+            "origin_type": inc.origin_type,
+            "is_demo": inc.is_demo,
             "timestamp": inc.created_at.isoformat(),
             "status": inc.status
         })

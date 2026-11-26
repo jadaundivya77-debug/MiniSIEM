@@ -52,6 +52,24 @@ class IncidentService:
         count = db.query(Incident).count() + 1
         inc_number = f"INC-2026-{count:04d}"
 
+        # Determine whether linked alerts/logs are simulated demo records or real telemetry
+        is_demo_inc = False
+        origin_type_inc = None
+        if related_alert_ids:
+            linked_alerts = db.query(Alert).filter(Alert.id.in_(related_alert_ids)).all()
+            if any(a.is_demo for a in linked_alerts):
+                is_demo_inc = True
+                origin_type_inc = "SIMULATED"
+            elif linked_alerts:
+                origin_type_inc = linked_alerts[0].origin_type
+        if not is_demo_inc and related_log_ids:
+            linked_logs = db.query(LogEvent).filter(LogEvent.id.in_(related_log_ids)).all()
+            if any(l.is_demo for l in linked_logs):
+                is_demo_inc = True
+                origin_type_inc = "SIMULATED"
+            elif not origin_type_inc and linked_logs:
+                origin_type_inc = linked_logs[0].origin_type
+
         incident = Incident(
             incident_number=inc_number,
             title=title,
@@ -60,6 +78,8 @@ class IncidentService:
             status="OPEN",
             assigned_analyst=assigned_analyst or "Unassigned",
             investigation_notes=investigation_notes,
+            origin_type=origin_type_inc,
+            is_demo=is_demo_inc,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
         )

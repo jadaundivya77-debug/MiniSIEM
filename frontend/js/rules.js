@@ -33,9 +33,18 @@ async function loadRules() {
 
           <div style="background-color:var(--bg-input);padding:0.75rem;border-radius:var(--radius-sm);font-size:0.78rem;">
             <div><strong>Category:</strong> <span class="badge badge-info">${escapeHTML(r.category)}</span></div>
-            <div style="margin-top:4px;"><strong>Sliding Window:</strong> ${r.time_window_seconds} seconds</div>
-            <div style="margin-top:4px;"><strong>Trigger Threshold:</strong> ${r.threshold_count} events</div>
-            <div style="margin-top:4px;"><strong>MITRE ATT&CK:</strong> <span class="badge badge-primary">${escapeHTML(r.mitre_id || "T1078")} - ${escapeHTML(r.mitre_name || "Technique")}</span></div>
+            <div style="display:flex;gap:0.5rem;align-items:center;margin-top:8px;">
+              <label style="flex:1;">
+                <span style="color:#94a3b8;">Window (s):</span>
+                <input id="rule-win-${r.id}" type="number" min="5" class="form-input" style="padding:0.25rem 0.4rem;margin-top:2px;" value="${r.time_window_seconds}">
+              </label>
+              <label style="flex:1;">
+                <span style="color:#94a3b8;">Threshold:</span>
+                <input id="rule-thr-${r.id}" type="number" min="1" class="form-input" style="padding:0.25rem 0.4rem;margin-top:2px;" value="${r.threshold_count}">
+              </label>
+              <button class="btn btn-outline" style="padding:0.3rem 0.55rem;font-size:0.75rem;margin-top:16px;" onclick="saveRuleTuning(${r.id})">Save</button>
+            </div>
+            <div style="margin-top:8px;"><strong>MITRE ATT&CK:</strong> <span class="badge badge-primary">${escapeHTML(r.mitre_id || "T1078")} - ${escapeHTML(r.mitre_name || "Technique")}</span></div>
           </div>
 
           <div style="display:flex;align-items:center;justify-content:space-between;margin-top:auto;padding-top:0.75rem;border-top:1px solid var(--border-color);">
@@ -68,6 +77,25 @@ async function toggleRuleState(id, newState) {
     loadRules();
   } catch (err) {
     showToast("Failed to update rule state: " + err.message, "danger");
+  }
+}
+
+async function saveRuleTuning(id) {
+  const winVal = parseInt(document.getElementById(`rule-win-${id}`)?.value || "120", 10);
+  const thrVal = parseInt(document.getElementById(`rule-thr-${id}`)?.value || "5", 10);
+  if (isNaN(winVal) || winVal < 5 || isNaN(thrVal) || thrVal < 1) {
+    showToast("Window must be >= 5s and Threshold >= 1.", "danger");
+    return;
+  }
+  try {
+    await apiFetch(`/rules/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ time_window_seconds: winVal, threshold_count: thrVal })
+    });
+    showToast(`Saved rule thresholds (window=${winVal}s, threshold=${thrVal})!`, "success");
+    loadRules();
+  } catch (err) {
+    showToast("Failed to save rule thresholds: " + err.message, "danger");
   }
 }
 

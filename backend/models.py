@@ -26,8 +26,11 @@ class LogSource(Base):
     source_type = Column(String(50), nullable=False) # LINUX, WINDOWS, WEB, API, FILE, DEMO
     hostname = Column(String(100), nullable=True)
     ip_address = Column(String(45), nullable=True)
-    status = Column(String(30), default="CONNECTED", nullable=False) # CONNECTED, DISCONNECTED, STALE, DEMO
+    status = Column(String(30), default="DISCONNECTED", nullable=False) # CONNECTED, DISCONNECTED, STALE, STOPPED, ERROR, DEMO
     last_event_at = Column(DateTime, nullable=True)
+    last_heartbeat_at = Column(DateTime, nullable=True)
+    last_error = Column(Text, nullable=True)
+    pending_events = Column(Integer, default=0, nullable=False)
     total_events = Column(Integer, default=0, nullable=False)
     error_count = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
@@ -48,6 +51,8 @@ class LogEvent(Base):
     severity = Column(String(20), default="INFO", nullable=False, index=True) # INFO, LOW, MEDIUM, HIGH, CRITICAL
     raw_event = Column(Text, nullable=True)
     metadata_json = Column(Text, nullable=True) # Additional contextual attributes
+    event_record_id = Column(Integer, nullable=True, index=True)
+    origin_type = Column(String(40), nullable=True, index=True) # REAL_WINDOWS, SIMULATED, FILE_IMPORT, MANUAL_INGEST, INGESTED_API
     is_demo = Column(Boolean, default=False, nullable=False, index=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
@@ -78,6 +83,7 @@ class Alert(Base):
     mitre_technique_id = Column(String(50), nullable=True)
     mitre_technique_name = Column(String(150), nullable=True)
     mitre_tactic = Column(String(100), nullable=True)
+    origin_type = Column(String(40), nullable=True)
     is_demo = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
@@ -98,6 +104,7 @@ class Incident(Base):
     root_cause = Column(Text, nullable=True)
     attack_story = Column(Text, nullable=True) # Chronological narrative of the attack
     mitre_tactic = Column(String(100), nullable=True)
+    origin_type = Column(String(40), nullable=True)
     is_demo = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)

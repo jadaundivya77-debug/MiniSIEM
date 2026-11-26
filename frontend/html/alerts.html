@@ -96,6 +96,7 @@
                 <tr>
                   <th>Alert ID</th>
                   <th>Alert Title</th>
+                  <th>Origin</th>
                   <th>Severity</th>
                   <th>Status</th>
                   <th>Source IP</th>
@@ -126,7 +127,8 @@
 
     <div class="drawer-body">
       <!-- Quick Status Strip -->
-      <div style="display:flex;gap:0.75rem;align-items:center;">
+      <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;">
+        <div id="drawer-alert-origin"></div>
         <div id="drawer-alert-severity"></div>
         <div id="drawer-alert-status"></div>
         <div class="mono" id="drawer-alert-time" style="font-size:0.75rem;color:var(--text-muted);margin-left:auto;"></div>
@@ -188,9 +190,14 @@
           <label class="form-label">Analyst Remediation Notes</label>
           <textarea id="drawer-notes-input" class="form-textarea" rows="2" placeholder="Record investigation findings or ticket IDs..."></textarea>
         </div>
-        <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="submitAlertStatusUpdate()">
-          <i class="fa-solid fa-check"></i> Save Alert State
-        </button>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-primary" style="flex:1;justify-content:center;" onclick="submitAlertStatusUpdate()">
+            <i class="fa-solid fa-check"></i> Save Alert State
+          </button>
+          <button class="btn btn-outline" style="justify-content:center;" onclick="escalateAlertToIncident()">
+            <i class="fa-solid fa-fire-flame-curved" style="color:#f97316;"></i> Create Incident
+          </button>
+        </div>
       </div>
     </div>
   </aside>

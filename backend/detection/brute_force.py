@@ -18,9 +18,14 @@ class BruteForceDetector:
         Evaluates whether the incoming event triggers a Brute Force detection.
         Requires:
         - event_type == 'auth_failure'
-        - source_ip and username present
+        - username present
+        - source_ip present, OR (for local Windows 4625 without IP) hostname present
+          so unrelated computers with missing IPs are never grouped together.
         """
-        if current_event.event_type != "auth_failure" or not current_event.source_ip or not current_event.username:
+        if current_event.event_type != "auth_failure" or not current_event.username:
+            return None
+
+        if not current_event.source_ip and not current_event.hostname:
             return None
 
         # Configurable thresholds
@@ -29,25 +34,34 @@ class BruteForceDetector:
 
         cutoff = current_event.timestamp - timedelta(seconds=window_seconds)
 
-        # Query recent failed logins matching this IP and username
-        failures = db.query(LogEvent).filter(
+        # Query recent failed logins scoped by (source_ip, username) or (missing IP + same hostname + username)
+        query = db.query(LogEvent).filter(
             LogEvent.event_type == "auth_failure",
-            LogEvent.source_ip == current_event.source_ip,
             LogEvent.username == current_event.username,
             LogEvent.timestamp >= cutoff,
             LogEvent.timestamp <= current_event.timestamp
-        ).order_by(LogEvent.timestamp.asc()).all()
+        )
+        if current_event.source_ip:
+            query = query.filter(LogEvent.source_ip == current_event.source_ip)
+        else:
+            query = query.filter(
+                LogEvent.source_ip.is_(None),
+                LogEvent.hostname == current_event.hostname
+            )
+
+        failures = query.order_by(LogEvent.timestamp.asc()).all()
 
         count = len(failures)
         if count >= threshold:
             event_ids = [e.id for e in failures]
             timestamps = [e.timestamp.isoformat() for e in failures]
+            origin_label = current_event.source_ip or f"Local Host ({current_event.hostname})"
 
             return {
                 "rule_id": cls.RULE_ID,
                 "rule_name": "Brute-Force Login Detection",
                 "severity": "HIGH",
-                "title": f"Brute-Force Authentication Attack on '{current_event.username}'",
+                "title": f"Brute-Force Authentication Attack on '{current_event.username}' ({origin_label})",
                 "source_ip": current_event.source_ip,
                 "target_username": current_event.username,
                 "affected_asset": current_event.hostname or current_event.destination_ip or "Target Host",
@@ -62,6 +76,8 @@ class BruteForceDetector:
                     "threshold": threshold,
                     "window_seconds": window_seconds,
                     "source_ip": current_event.source_ip,
+                    "origin": origin_label,
+                    "hostname": current_event.hostname,
                     "username": current_event.username,
                     "timestamps": timestamps
                 }

@@ -39,7 +39,7 @@ class DetectionEngine:
         if r1 and r1.is_enabled:
             detection_res = BruteForceDetector.check(event, self.db, r1)
             if detection_res:
-                alert = self._handle_detection(detection_res, is_demo=event.is_demo)
+                alert = self._handle_detection(detection_res, is_demo=event.is_demo, origin_type=event.origin_type)
                 if alert:
                     created_alerts.append(alert)
 
@@ -48,7 +48,7 @@ class DetectionEngine:
         if r2 and r2.is_enabled:
             detection_res = SuspiciousLoginDetector.check(event, self.db, r2)
             if detection_res:
-                alert = self._handle_detection(detection_res, is_demo=event.is_demo)
+                alert = self._handle_detection(detection_res, is_demo=event.is_demo, origin_type=event.origin_type)
                 if alert:
                     created_alerts.append(alert)
 
@@ -57,7 +57,7 @@ class DetectionEngine:
         if r3 and r3.is_enabled:
             detection_res = PortScanDetector.check(event, self.db, r3)
             if detection_res:
-                alert = self._handle_detection(detection_res, is_demo=event.is_demo)
+                alert = self._handle_detection(detection_res, is_demo=event.is_demo, origin_type=event.origin_type)
                 if alert:
                     created_alerts.append(alert)
 
@@ -66,7 +66,7 @@ class DetectionEngine:
         if r4 and r4.is_enabled:
             detection_res = PrivilegeEscalationDetector.check(event, self.db, r4)
             if detection_res:
-                alert = self._handle_detection(detection_res, is_demo=event.is_demo)
+                alert = self._handle_detection(detection_res, is_demo=event.is_demo, origin_type=event.origin_type)
                 if alert:
                     created_alerts.append(alert)
 
@@ -75,27 +75,34 @@ class DetectionEngine:
         if r5 and r5.is_enabled:
             correlation_res = EventCorrelator.check_compromise_chain(event, self.db, r5)
             if correlation_res:
-                alert = self._handle_detection(correlation_res, is_demo=event.is_demo)
+                alert = self._handle_detection(correlation_res, is_demo=event.is_demo, origin_type=event.origin_type)
                 if alert:
                     created_alerts.append(alert)
                     self._create_or_update_correlated_incident(correlation_res, alert, event)
 
         return created_alerts
 
-    def _handle_detection(self, d_data: Dict[str, Any], is_demo: bool = False) -> Optional[Alert]:
+    def _handle_detection(self, d_data: Dict[str, Any], is_demo: bool = False, origin_type: Optional[str] = None) -> Optional[Alert]:
         """
         Suppresses duplicates within cooldown period; otherwise generates a new Alert.
         """
         cooldown_cutoff = datetime.now(timezone.utc) - timedelta(seconds=ALERT_COOLDOWN_SECONDS)
 
-        # Deduplication check for OPEN alerts matching rule, IP, and username
-        existing_alert = self.db.query(Alert).filter(
+        # Deduplication check for OPEN alerts matching rule, IP (or asset when IP missing), and username
+        dedup_query = self.db.query(Alert).filter(
             Alert.rule_id == d_data["rule_id"],
-            Alert.source_ip == d_data["source_ip"],
             Alert.target_username == d_data["target_username"],
             Alert.status == "OPEN",
             Alert.created_at >= cooldown_cutoff
-        ).first()
+        )
+        if d_data["source_ip"] is not None:
+            dedup_query = dedup_query.filter(Alert.source_ip == d_data["source_ip"])
+        else:
+            dedup_query = dedup_query.filter(
+                Alert.source_ip.is_(None),
+                Alert.affected_asset == d_data["affected_asset"]
+            )
+        existing_alert = dedup_query.first()
 
         if existing_alert:
             # Update existing alert event count and timestamp
@@ -128,6 +135,7 @@ class DetectionEngine:
             mitre_technique_id=d_data.get("mitre_id"),
             mitre_technique_name=d_data.get("mitre_name"),
             mitre_tactic=d_data.get("mitre_tactic"),
+            origin_type=origin_type or ("SIMULATED" if is_demo else None),
             is_demo=is_demo,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)
@@ -167,10 +175,11 @@ class DetectionEngine:
         incident_count = self.db.query(Incident).count() + 1
         inc_number = f"INC-2026-{incident_count:04d}"
 
+        origin_label = c_data.get("source_ip") or c_data.get("affected_asset") or "Local Host"
         new_incident = Incident(
             incident_number=inc_number,
-            title=f"Account Takeover & Compromise: {c_data['target_username']} ({c_data['source_ip']})",
-            description=f"Correlated multi-stage attack detected: Password brute-forcing followed by successful login session from IP {c_data['source_ip']}.",
+            title=f"Account Takeover & Compromise: {c_data['target_username']} ({origin_label})",
+            description=f"Correlated multi-stage attack detected: Password brute-forcing followed by successful login session from {origin_label}.",
             severity="CRITICAL",
             status="OPEN",
             assigned_analyst="Unassigned (Tier-1 SOC Pool)",
@@ -178,6 +187,7 @@ class DetectionEngine:
             root_cause="Credential Guessing / Brute Force Authentication",
             attack_story=c_data.get("attack_story", ""),
             mitre_tactic="Initial Access & Persistence",
+            origin_type=trigger_event.origin_type or ("SIMULATED" if trigger_event.is_demo else None),
             is_demo=trigger_event.is_demo,
             created_at=datetime.now(timezone.utc),
             updated_at=datetime.now(timezone.utc)

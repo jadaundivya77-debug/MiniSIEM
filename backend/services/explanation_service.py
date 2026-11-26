@@ -19,7 +19,8 @@ def generate_alert_explanation(data: Dict[str, Any]) -> str:
     - Evidence summary.
     """
     rule_id = data.get("rule_id", "UNKNOWN")
-    src_ip = data.get("source_ip", "Unknown IP")
+    src_ip = data.get("source_ip")
+    origin_display = src_ip or f"Local Host ({data.get('affected_asset') or 'Unspecified IP'})"
     user = data.get("target_username") or "Unspecified account"
     ev = data.get("evidence", {})
     window = data.get("time_window_seconds", 120)
@@ -28,14 +29,14 @@ def generate_alert_explanation(data: Dict[str, Any]) -> str:
         failed_count = ev.get("failed_attempts", data.get("event_count", 5))
         return (
             f"WHAT HAPPENED:\n"
-            f"{failed_count} consecutive failed authentication attempts were detected targeting account '{user}' from source IP {src_ip}.\n\n"
+            f"{failed_count} consecutive failed authentication attempts were detected targeting account '{user}' from {origin_display}.\n\n"
             f"WHY IS IT SUSPICIOUS:\n"
             f"The rapid failure rate exceeds normal user typographical error thresholds (limit: {ev.get('threshold', 5)} attempts within {window}s). "
             f"This behavior strongly matches automated password guessing or credential stuffing dictionary attacks.\n\n"
             f"TRIGGERED RULE:\n"
             f"{data.get('rule_name')} ({rule_id}) | MITRE ATT&CK: T1110 (Brute Force).\n\n"
             f"EVIDENCE SUMMARY:\n"
-            f"• Source IP: {src_ip}\n"
+            f"• Origin / Source IP: {origin_display}\n"
             f"• Target Username: {user}\n"
             f"• Total Failed Attempts: {failed_count}\n"
             f"• Observed Window: {window} seconds"
@@ -87,20 +88,20 @@ def generate_alert_explanation(data: Dict[str, Any]) -> str:
             f"EVIDENCE SUMMARY:\n"
             f"• User: {user}\n"
             f"• Target Host: {data.get('affected_asset')}\n"
-            f"• Source IP: {src_ip}"
+            f"• Source IP: {origin_display}"
         )
 
     elif rule_id == "RULE-005":
         return (
             f"WHAT HAPPENED:\n"
-            f"Correlated Account Takeover: Multiple authentication failures against '{user}' from {src_ip} were immediately followed by a successful login.\n\n"
+            f"Correlated Account Takeover: Multiple authentication failures against '{user}' from {origin_display} were immediately followed by a successful login.\n\n"
             f"WHY IS IT SUSPICIOUS:\n"
             f"This sequence confirms that an attacker succeeded in guessing or cracking valid credentials after initial brute-force attempts. A critical threat to internal security boundaries.\n\n"
             f"TRIGGERED RULE:\n"
             f"{data.get('rule_name')} ({rule_id}) | MITRE ATT&CK: T1078 & T1110.\n\n"
             f"EVIDENCE SUMMARY:\n"
             f"• Multi-Stage Attack Chain: Brute-Force -> Valid Session -> Compromise\n"
-            f"• Offending IP: {src_ip}\n"
+            f"• Offending Origin: {origin_display}\n"
             f"• Compromised Account: {user}"
         )
 

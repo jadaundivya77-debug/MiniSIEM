@@ -46,6 +46,7 @@ class LogEventCreate(BaseModel):
     severity: str = "INFO"
     raw_event: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
+    origin_type: Optional[str] = None
     is_demo: bool = False
 
 class LogEventResponse(BaseModel):
@@ -61,6 +62,8 @@ class LogEventResponse(BaseModel):
     severity: str
     raw_event: Optional[str] = None
     metadata_json: Optional[str] = None
+    event_record_id: Optional[int] = None
+    origin_type: Optional[str] = None
     is_demo: bool
     created_at: datetime
     model_config = {"from_attributes": True}
@@ -97,6 +100,7 @@ class AlertResponse(BaseModel):
     mitre_technique_id: Optional[str] = None
     mitre_technique_name: Optional[str] = None
     mitre_tactic: Optional[str] = None
+    origin_type: Optional[str] = None
     is_demo: bool
     created_at: datetime
     updated_at: datetime
@@ -152,6 +156,7 @@ class IncidentResponse(BaseModel):
     root_cause: Optional[str] = None
     attack_story: Optional[str] = None
     mitre_tactic: Optional[str] = None
+    origin_type: Optional[str] = None
     is_demo: bool
     created_at: datetime
     updated_at: datetime
@@ -173,13 +178,26 @@ class LogSourceResponse(BaseModel):
     source_type: str
     hostname: Optional[str] = None
     ip_address: Optional[str] = None
-    status: str # CONNECTED, DISCONNECTED, STALE, DEMO
+    status: str # CONNECTED, DISCONNECTED, STALE, STOPPED, ERROR, DEMO
     last_event_at: Optional[datetime] = None
+    last_heartbeat_at: Optional[datetime] = None
+    last_error: Optional[str] = None
+    pending_events: int = 0
     total_events: int
     error_count: int
     created_at: datetime
     updated_at: datetime
     model_config = {"from_attributes": True}
+
+class CollectorHeartbeatRequest(BaseModel):
+    source_name: str = "Windows Event Log Forwarder"
+    source_type: str = "WINDOWS"
+    hostname: Optional[str] = None
+    ip_address: Optional[str] = None
+    status: str = "CONNECTED" # CONNECTED, STOPPED, ERROR
+    last_error: Optional[str] = None
+    pending_events: int = 0
+    recovered_events: int = 0
 
 # ----------------- ASSET SCHEMAS -----------------
 class AssetCreate(BaseModel):

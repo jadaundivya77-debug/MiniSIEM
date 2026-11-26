@@ -211,6 +211,7 @@ def start_simulation(req: SimulationRequest, db: Session = Depends(get_db)):
             severity=norm["severity"],
             raw_event=norm["raw_event"],
             metadata_json=norm["metadata_json"],
+            origin_type="SIMULATED",
             is_demo=True
         )
         db.add(log_entry)

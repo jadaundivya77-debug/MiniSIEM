@@ -8,6 +8,7 @@ from typing import Dict, Any, Optional
 from sqlalchemy.orm import Session
 from backend.models import LogEvent, DetectionRule
 from backend.utils.helpers import safe_json_loads
+from backend.collectors.windows_collector import is_noisy_system_account
 
 class PrivilegeEscalationDetector:
     RULE_ID = "RULE-004"
@@ -16,7 +17,12 @@ class PrivilegeEscalationDetector:
     def check(cls, current_event: LogEvent, db: Session, rule_config: Optional[DetectionRule] = None) -> Optional[Dict[str, Any]]:
         """
         Detects unauthorized or suspicious privilege escalation attempts.
+        Filters out built-in Windows OS service/machine accounts (SYSTEM, DWM-*, UMFD-*, *$)
+        to prevent false alerts on normal Windows background activity.
         """
+        if current_event.source == "windows" and is_noisy_system_account(current_event.username):
+            return None
+
         is_elevated = False
         reason = ""
 
@@ -27,9 +33,13 @@ class PrivilegeEscalationDetector:
 
         # Check metadata
         meta = safe_json_loads(current_event.metadata_json)
-        if meta.get("EventID") == "4672":
+        if str(meta.get("EventID", "")) == "4672":
             is_elevated = True
-            reason = "Windows Security Event 4672: Special privileges assigned to new logon."
+            privs = meta.get("PrivilegeList")
+            if privs:
+                reason = f"Windows Security Event 4672: Special privileges assigned ({privs})."
+            else:
+                reason = "Windows Security Event 4672: Special privileges assigned to new logon."
         elif meta.get("elevated_user") == "root":
             is_elevated = True
             cmd = meta.get("command", "")

@@ -198,11 +198,41 @@ cd minisiemx
 pip install -r requirements.txt
 ```
 
-### Step 3: Run the Application
-```bash
-python run.py
+### Step 3: Run the Application (Windows Quickstart)
+
+#### Option A: One-Click Batch / PowerShell Launchers
+1. **Start the MiniSIEM X Backend & Web Portal**:
+   - Double-click `start_backend.bat` (or run `.\start_backend.ps1` / `python run.py`).
+2. **Start the Real Windows Security Event Log Collector**:
+   - Right-click `start_collector.bat` -> **Run as administrator** (or open an **Administrator PowerShell** and run `.\start_collector.ps1` or `python windows_collector.py`).
+   - *Why Administrator?* Windows restricts the **Security** Event Log (`4624`, `4625`, `4672`) to Administrators or members of the `Event Log Readers` local group.
+
+#### Option B: Manual Commands
+```powershell
+# Terminal 1 (Backend)
+.\.venv\Scripts\python.exe run.py
+
+# Terminal 2 (Run as Administrator - Real Windows Event Collector)
+.\.venv\Scripts\python.exe windows_collector.py
 ```
 *The database and initial seed data (rules, baseline accounts, assets, log sources) will automatically initialize.*
+
+### Windows Audit Policy Check (Recommended for 4625 Failed Logons)
+To ensure Windows logs both successful (`4624`) and failed (`4625`) logon attempts on your laptop, run in an Administrator terminal:
+```powershell
+auditpol /set /subcategory:"Logon" /success:enable /failure:enable
+```
+
+### Live Hackathon Demonstration Checklist
+1. **Start Backend**: Run `start_backend.bat` and open [http://127.0.0.1:8000](http://127.0.0.1:8000) -> sign in as `admin` (`Admin@MiniSIEM2026!` or click Quick Demo Login).
+2. **Start Real Windows Collector**: Run `start_collector.bat` **as Administrator**. Verify `Log Sources` shows `Windows Event Log Forwarder` as `CONNECTED` with your laptop's hostname.
+3. **Verify Real Telemetry**: Open **Live Log Monitoring** — real Windows events (`4624`, `4625`, `4672`) appear with green **REAL** badges (distinct from purple **SIMULATED** badges).
+4. **Trigger Real Windows Detections**:
+   - **Special Privilege Assignment (`RULE-004` / 4672)**: Open any app as Administrator (UAC prompt) or sign in with an admin account -> `RULE-004` generates a HIGH alert (while noisy `SYSTEM` / `DWM-*` / `UMFD-*` OS accounts are suppressed).
+   - **Failed Logon / Brute-Force (`RULE-001` / 4625)**: Trigger 5+ failed local login attempts within 120s (e.g., lock screen wrong password or `runas /user:testdemo cmd` with wrong passwords) -> `RULE-001` triggers a HIGH alert scoped to your laptop's hostname.
+   - **Account Compromise Incident (`RULE-005`)**: 3+ failed `4625` attempts followed by a real `4624` success for the same user on the same host automatically creates a CRITICAL Incident with linked events in **Incident Management**. You can also click **Create Incident** inside any alert drawer.
+5. **Fallback / Network Rules (`RULE-002`, `RULE-003`)**:
+   - Single-laptop local logons (`127.0.0.1` / `::1` / missing IP) intentionally do **not** trigger `RULE-002` (Suspicious External IP) to prevent false alarms; demonstrating `RULE-002` with real logs requires a remote logon (`RDP`/`SMB`) from another IP, and `RULE-003` (Port Scan) requires firewall/network probe logs. Use **START ATTACK SIMULATION** on the dashboard for clearly badged **SIMULATED** demos of `RULE-002` / `RULE-003`.
 
 ### Step 4: Access the Application
 - **SOC Web Portal**: [http://127.0.0.1:8000](http://127.0.0.1:8000)

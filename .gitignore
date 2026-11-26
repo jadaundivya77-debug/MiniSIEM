@@ -21,3 +21,10 @@ htmlcov/
 .idea/
 .DS_Store
 
+
+# Local virtual environment
+.venv/
+
+# Local Windows collector state
+data/windows_collector_state.json
+data/windows_collector_state.backup.json

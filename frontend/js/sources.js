@@ -4,9 +4,10 @@
 document.addEventListener("DOMContentLoaded", () => {
   checkAuth();
   loadSources();
+  setInterval(() => loadSources(true), CONFIG.REFRESH_INTERVAL_MS);
 });
 
-async function loadSources() {
+async function loadSources(silent = false) {
   const container = document.getElementById("sources-table-body");
   if (!container) return;
 
@@ -47,7 +48,9 @@ async function loadSources() {
     });
     container.innerHTML = html;
   } catch (err) {
-    showToast("Error retrieving log sources: " + err.message, "danger");
+    if (!silent) {
+      showToast("Error retrieving log sources: " + err.message, "danger");
+    }
   }
 }
 

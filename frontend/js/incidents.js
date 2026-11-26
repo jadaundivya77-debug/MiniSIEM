@@ -13,9 +13,10 @@ document.addEventListener("DOMContentLoaded", () => {
   checkAuth();
   loadIncidents();
   initIncidentFilters();
+  setInterval(() => loadIncidents(true), CONFIG.REFRESH_INTERVAL_MS);
 });
 
-async function loadIncidents() {
+async function loadIncidents(silent = false) {
   const grid = document.getElementById("incidents-grid");
   if (!grid) return;
 
@@ -38,9 +39,12 @@ async function loadIncidents() {
 
       html += `
         <div class="incident-card ${cardClass}">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:0.4rem;">
             <span class="incident-num">${escapeHTML(inc.incident_number)}</span>
-            ${formatSeverityBadge(inc.severity)}
+            <div style="display:flex;gap:0.35rem;align-items:center;">
+              ${formatOriginBadge(inc.is_demo)}
+              ${formatSeverityBadge(inc.severity)}
+            </div>
           </div>
           <div class="incident-title">${escapeHTML(inc.title)}</div>
           <div style="font-size:0.8rem;color:#94a3b8;line-height:1.4;">${escapeHTML(inc.description)}</div>
@@ -62,7 +66,9 @@ async function loadIncidents() {
     });
     grid.innerHTML = html;
   } catch (err) {
-    showToast("Error retrieving incidents: " + err.message, "danger");
+    if (!silent) {
+      showToast("Error retrieving incidents: " + err.message, "danger");
+    }
   }
 }
 
@@ -109,15 +115,27 @@ async function viewIncidentStory(id) {
     } else {
       let tHtml = "";
       steps.forEach(st => {
+        const logInfo = st.log
+          ? `<div class="mono" style="font-size:0.72rem;color:#38bdf8;margin-top:4px;">
+              [Telemetry #${st.log.id}: ${escapeHTML(st.log.source)} / ${escapeHTML(st.log.event_type)} | user=${escapeHTML(st.log.username || "-")} | ip=${escapeHTML(st.log.source_ip || "Local")}]
+             </div>
+             ${st.log.raw_event ? `<div class="mono" style="font-size:0.72rem;color:#94a3b8;margin-top:2px;">${escapeHTML(st.log.raw_event.substring(0, 180))}</div>` : ""}`
+          : "";
+        const alertInfo = st.alert
+          ? `<div class="mono" style="font-size:0.72rem;color:#f97316;margin-top:4px;">
+              [Alert #ALT-${st.alert.id} (${escapeHTML(st.alert.rule_id)}): ${escapeHTML(st.alert.title)}]
+             </div>`
+          : "";
         tHtml += `
           <div class="story-step">
             <div class="story-step-header">
               <div class="story-step-stage">${escapeHTML(st.stage)}</div>
-              <div class="mono" style="font-size:0.75rem;color:#94a3b8;">${formatDate(st.created_at)}</div>
+              <div class="mono" style="font-size:0.75rem;color:#94a3b8;">${formatDate(st.log?.timestamp || st.alert?.created_at || st.created_at)}</div>
             </div>
             <div class="story-step-desc">
               ${escapeHTML(st.note || "")}
-              ${st.log ? `<br><span class="mono" style="font-size:0.72rem;color:#38bdf8;">[Telemetry #${st.log.id}: ${escapeHTML(st.log.event_type)} from ${escapeHTML(st.log.source_ip || "-")}]</span>` : ""}
+              ${alertInfo}
+              ${logInfo}
             </div>
           </div>
         `;

@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from backend.config import DATABASE_URL, DEFAULT_TRUSTED_IPS
 from backend.models import (
@@ -21,9 +21,39 @@ def get_db():
     finally:
         db.close()
 
+def _ensure_column_migrations():
+    """Safely adds newly introduced columns to existing SQLite tables without destroying data."""
+    if "sqlite" not in DATABASE_URL:
+        return
+    migrations = {
+        "log_sources": [
+            ("last_heartbeat_at", "DATETIME"),
+            ("last_error", "TEXT"),
+            ("pending_events", "INTEGER NOT NULL DEFAULT 0"),
+        ],
+        "logs": [
+            ("event_record_id", "INTEGER"),
+            ("origin_type", "VARCHAR(40)"),
+        ],
+        "alerts": [
+            ("origin_type", "VARCHAR(40)"),
+        ],
+        "incidents": [
+            ("origin_type", "VARCHAR(40)"),
+        ],
+    }
+    with engine.begin() as conn:
+        for table, cols in migrations.items():
+            existing = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})")).fetchall()}
+            for col_name, col_type in cols:
+                if col_name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}"))
+
+
 def init_db():
     """Initializes schema and seeds baseline rules, users, assets and log sources."""
     Base.metadata.create_all(bind=engine)
+    _ensure_column_migrations()
     db = SessionLocal()
     try:
         # 1. Seed Default Users if none exist
@@ -203,7 +233,7 @@ def init_db():
             db.add_all(default_assets)
             db.commit()
 
-        # 5. Seed Baseline Log Sources
+        # 5. Seed Baseline Log Sources (non-DEMO start DISCONNECTED until real collector heartbeats)
         if db.query(LogSource).count() == 0:
             sources = [
                 LogSource(
@@ -211,17 +241,17 @@ def init_db():
                     source_type="LINUX",
                     hostname="web-gateway-01.prod",
                     ip_address="192.168.1.100",
-                    status="CONNECTED",
-                    last_event_at=datetime.now(timezone.utc),
+                    status="DISCONNECTED",
+                    last_event_at=None,
                     total_events=0
                 ),
                 LogSource(
                     name="Windows Event Log Forwarder",
                     source_type="WINDOWS",
-                    hostname="dc01.corp.minisiemx.local",
-                    ip_address="10.0.0.1",
-                    status="CONNECTED",
-                    last_event_at=datetime.now(timezone.utc),
+                    hostname="local-windows-host",
+                    ip_address=None,
+                    status="DISCONNECTED",
+                    last_event_at=None,
                     total_events=0
                 ),
                 LogSource(
@@ -229,8 +259,8 @@ def init_db():
                     source_type="WEB",
                     hostname="api.minisiemx.local",
                     ip_address="192.168.1.105",
-                    status="CONNECTED",
-                    last_event_at=datetime.now(timezone.utc),
+                    status="DISCONNECTED",
+                    last_event_at=None,
                     total_events=0
                 ),
                 LogSource(

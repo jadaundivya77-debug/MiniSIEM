@@ -4,14 +4,19 @@
 const CONFIG = {
   API_BASE: "/api",
   APP_NAME: "MiniSIEM X",
-  REFRESH_INTERVAL_MS: 10000
+  REFRESH_INTERVAL_MS: 5000
 };
 
 // Formatting utilities
 function formatDate(isoString) {
   if (!isoString) return "-";
   try {
-    const d = new Date(isoString);
+    let normalized = String(isoString).trim();
+    // Backend SQLite datetimes are UTC but may omit trailing 'Z'
+    if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(normalized) && !/(Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) {
+      normalized = normalized.replace(" ", "T") + "Z";
+    }
+    const d = new Date(normalized);
     return d.toLocaleString("en-US", {
       month: "short",
       day: "2-digit",
@@ -23,6 +28,13 @@ function formatDate(isoString) {
   } catch (e) {
     return isoString;
   }
+}
+
+function formatOriginBadge(isDemo) {
+  if (isDemo) {
+    return `<span class="badge badge-demo" title="Synthetic simulated event"><i class="fa-solid fa-flask" style="margin-right:4px;"></i>SIMULATED</span>`;
+  }
+  return `<span class="badge badge-success" title="Real collected telemetry"><i class="fa-solid fa-shield-check" style="margin-right:4px;"></i>REAL</span>`;
 }
 
 function formatSeverityBadge(sev) {

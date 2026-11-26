@@ -38,11 +38,22 @@ function renderKPIs(stats) {
   document.getElementById("kpi-open-incidents").innerText = Number(stats.open_incidents || 0).toLocaleString();
   document.getElementById("kpi-today-events").innerText = Number(stats.events_processed_today || 0).toLocaleString();
 
-  // Demo Mode Indicator
+  // Real & Demo Telemetry Indicators
+  const realBanner = document.getElementById("real-data-indicator");
+  if (realBanner) {
+    if ((stats.real_events_count || 0) > 0) {
+      realBanner.style.display = "inline-flex";
+      realBanner.innerHTML = `<i class="fa-solid fa-satellite-dish" style="margin-right:4px;"></i> REAL TELEMETRY (${Number(stats.real_events_count).toLocaleString()})`;
+    } else {
+      realBanner.style.display = "none";
+    }
+  }
+
   const demoBanner = document.getElementById("demo-mode-indicator");
   if (demoBanner) {
     if (stats.is_demo) {
       demoBanner.style.display = "inline-flex";
+      demoBanner.innerHTML = `<i class="fa-solid fa-flask" style="margin-right:4px;"></i> DEMO DATA (${Number(stats.demo_events_count || 0).toLocaleString()})`;
     } else {
       demoBanner.style.display = "none";
     }
@@ -145,24 +156,25 @@ function renderCharts(stats) {
     });
   }
 
-  // Chart 4: Events Volume Simulation Timeline
+  // Chart 4: Events Volume Timeline (real 10-minute buckets over last 60m)
   const ctxEvents = document.getElementById("chart-events")?.getContext("2d");
   if (ctxEvents) {
     if (charts.events) charts.events.destroy();
+    const timelineBuckets = stats.events_timeline || [
+      { label: "-50m", count: 0 },
+      { label: "-40m", count: 0 },
+      { label: "-30m", count: 0 },
+      { label: "-20m", count: 0 },
+      { label: "-10m", count: 0 },
+      { label: "Now", count: stats.events_processed_today || 0 }
+    ];
     charts.events = new Chart(ctxEvents, {
       type: "line",
       data: {
-        labels: ["T-50m", "T-40m", "T-30m", "T-20m", "T-10m", "Current"],
+        labels: timelineBuckets.map(b => b.label),
         datasets: [{
-          label: "Log Intake Rate",
-          data: [
-            Math.max(2, Math.floor(stats.total_events * 0.1)),
-            Math.max(5, Math.floor(stats.total_events * 0.25)),
-            Math.max(8, Math.floor(stats.total_events * 0.4)),
-            Math.max(12, Math.floor(stats.total_events * 0.65)),
-            Math.max(15, Math.floor(stats.total_events * 0.85)),
-            stats.total_events || 20
-          ],
+          label: "Events Ingested",
+          data: timelineBuckets.map(b => b.count),
           borderColor: "#06B6D4",
           backgroundColor: "rgba(6, 182, 212, 0.15)",
           fill: true,
@@ -177,7 +189,7 @@ function renderCharts(stats) {
         plugins: { legend: { display: false } },
         scales: {
           x: { ticks: { color: "#94a3b8" }, grid: { display: false } },
-          y: { ticks: { color: "#94a3b8" }, grid: { color: "#1e293b" } }
+          y: { beginAtZero: true, ticks: { color: "#94a3b8", precision: 0 }, grid: { color: "#1e293b" } }
         }
       }
     });
@@ -251,7 +263,10 @@ function renderTimeline(feed) {
           <strong>${escapeHTML(item.title)}</strong>
           ${item.source_ip ? `<span class="mono" style="margin-left:6px;color:#94a3b8;">[${escapeHTML(item.source_ip)}]</span>` : ""}
         </div>
-        <div>${formatSeverityBadge(item.severity)}</div>
+        <div style="display:flex;gap:0.4rem;align-items:center;">
+          ${formatOriginBadge(item.is_demo)}
+          ${formatSeverityBadge(item.severity)}
+        </div>
       </div>
     `;
   });

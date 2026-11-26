@@ -22,36 +22,48 @@ class EventCorrelator:
         rule_config: Optional[DetectionRule] = None
     ) -> Optional[Dict[str, Any]]:
         """
-        When a successful login occurs (or privilege escalation happens), checks if it was
-        preceded by multiple failed logins from the same source IP and username.
+        When a successful login occurs, checks if it was preceded by multiple failed
+        logins from the same source IP and username (or same hostname and username when
+        source_ip is missing for local Windows logons).
         Generates a unified CRITICAL incident.
         """
         # Trigger on successful authentication
-        if current_event.event_type != "auth_success" or not current_event.source_ip or not current_event.username:
+        if current_event.event_type != "auth_success" or not current_event.username:
+            return None
+        if not current_event.source_ip and not current_event.hostname:
             return None
 
         window_seconds = rule_config.time_window_seconds if rule_config else 300
         cutoff = current_event.timestamp - timedelta(seconds=window_seconds)
 
         # 1. Look for prior failed login attempts
-        prior_failures = db.query(LogEvent).filter(
+        failure_query = db.query(LogEvent).filter(
             LogEvent.event_type == "auth_failure",
-            LogEvent.source_ip == current_event.source_ip,
             LogEvent.username == current_event.username,
             LogEvent.timestamp >= cutoff,
             LogEvent.timestamp <= current_event.timestamp
-        ).order_by(LogEvent.timestamp.asc()).all()
+        )
+        if current_event.source_ip:
+            failure_query = failure_query.filter(LogEvent.source_ip == current_event.source_ip)
+        else:
+            failure_query = failure_query.filter(
+                LogEvent.source_ip.is_(None),
+                LogEvent.hostname == current_event.hostname
+            )
+        prior_failures = failure_query.order_by(LogEvent.timestamp.asc()).all()
 
         if len(prior_failures) < 3:
             return None # Insufficient prior failures to assert correlation
 
-        # 2. Check for subsequent or co-occurring privilege escalation
+        # 2. Check for co-occurring or subsequent privilege escalation
         subsequent_priv_events = db.query(LogEvent).filter(
             LogEvent.event_type.in_(["privilege_escalation", "sudo"]),
             LogEvent.username == current_event.username,
-            LogEvent.timestamp >= current_event.timestamp,
+            LogEvent.timestamp >= current_event.timestamp - timedelta(seconds=5),
             LogEvent.timestamp <= current_event.timestamp + timedelta(seconds=180)
         ).order_by(LogEvent.timestamp.asc()).all()
+
+        origin_label = current_event.source_ip or f"Local Host ({current_event.hostname})"
 
         # Build chronological attack story timeline
         timeline_events: List[Dict[str, Any]] = []
@@ -60,7 +72,7 @@ class EventCorrelator:
         timeline_events.append({
             "stage": "Reconnaissance / Credential Access",
             "time": prior_failures[0].timestamp.isoformat(),
-            "description": f"Observed {len(prior_failures)} failed authentication attempts from IP {current_event.source_ip} against user '{current_event.username}'",
+            "description": f"Observed {len(prior_failures)} failed authentication attempts from {origin_label} against user '{current_event.username}'",
             "log_id": prior_failures[0].id
         })
 
@@ -68,7 +80,7 @@ class EventCorrelator:
         timeline_events.append({
             "stage": "Initial Access / Compromise",
             "time": current_event.timestamp.isoformat(),
-            "description": f"Successful authentication gained for user '{current_event.username}' from the same offending IP {current_event.source_ip}",
+            "description": f"Successful authentication gained for user '{current_event.username}' from {origin_label}",
             "log_id": current_event.id
         })
 
@@ -77,7 +89,7 @@ class EventCorrelator:
             timeline_events.append({
                 "stage": "Privilege Escalation",
                 "time": priv.timestamp.isoformat(),
-                "description": f"Elevated commands executed by user '{current_event.username}' on {priv.hostname or 'host'}",
+                "description": f"Elevated privileges observed for user '{current_event.username}' on {priv.hostname or 'host'}",
                 "log_id": priv.id
             })
 
@@ -85,13 +97,13 @@ class EventCorrelator:
 
         # Chronological narrative text
         story_narrative = (
-            f"At {prior_failures[0].timestamp.strftime('%H:%M:%S UTC')}, an external host at {current_event.source_ip} "
+            f"At {prior_failures[0].timestamp.strftime('%H:%M:%S UTC')}, {origin_label} "
             f"initiated {len(prior_failures)} credential guessing attempts targeting account '{current_event.username}'. "
-            f"At {current_event.timestamp.strftime('%H:%M:%S UTC')}, a successful login was established from the exact same source IP. "
+            f"At {current_event.timestamp.strftime('%H:%M:%S UTC')}, a successful login was established for the same account. "
         )
         if subsequent_priv_events:
             story_narrative += (
-                f"Immediately following initial access, administrative privilege escalation was triggered, "
+                f"Alongside or immediately following initial access, administrative privilege escalation was triggered, "
                 f"demonstrating complete host compromise."
             )
         else:
@@ -103,7 +115,7 @@ class EventCorrelator:
             "rule_id": cls.RULE_ID,
             "rule_name": "Account Compromise Correlation",
             "severity": "CRITICAL",
-            "title": f"CRITICAL: Confirmed Account Compromise for '{current_event.username}' from {current_event.source_ip}",
+            "title": f"CRITICAL: Confirmed Account Compromise for '{current_event.username}' ({origin_label})",
             "source_ip": current_event.source_ip,
             "target_username": current_event.username,
             "affected_asset": current_event.hostname or current_event.destination_ip or "Internal Host",
@@ -119,6 +131,7 @@ class EventCorrelator:
                 "failed_count": len(prior_failures),
                 "successful_login_time": current_event.timestamp.isoformat(),
                 "source_ip": current_event.source_ip,
+                "origin": origin_label,
                 "username": current_event.username,
                 "has_privilege_escalation": len(subsequent_priv_events) > 0,
                 "timeline": timeline_events

@@ -7,6 +7,7 @@ MITRE: T1078
 from typing import Dict, Any, Optional, Set
 from sqlalchemy.orm import Session
 from backend.models import LogEvent, TrustedIP, DetectionRule
+from backend.utils.helpers import safe_json_loads
 
 class SuspiciousLoginDetector:
     RULE_ID = "RULE-002"
@@ -15,9 +16,18 @@ class SuspiciousLoginDetector:
     def check(cls, current_event: LogEvent, db: Session, rule_config: Optional[DetectionRule] = None) -> Optional[Dict[str, Any]]:
         """
         Flags successful login attempts originating from untrusted/unknown IPs.
-        Does not assume an unfamiliar IP is automatically an attacker, but flags for review.
+        Skips local console / loopback / unspecified IPs to avoid false alerts on normal host logins.
         """
         if current_event.event_type != "auth_success" or not current_event.source_ip:
+            return None
+
+        src_ip = current_event.source_ip.strip()
+        if src_ip in ["-", "", "127.0.0.1", "::1", "0.0.0.0", "localhost"]:
+            return None
+
+        # Skip non-network Windows logons (e.g., interactive/unlock/service) even if loopback-mapped
+        meta = safe_json_loads(current_event.metadata_json)
+        if current_event.source == "windows" and str(meta.get("LogonType", "")) in {"0", "2", "4", "5", "7"}:
             return None
 
         # Fetch trusted IP set
@@ -26,11 +36,7 @@ class SuspiciousLoginDetector:
         }
 
         # If IP is in trusted set, not suspicious
-        if current_event.source_ip in trusted_ips:
-            return None
-
-        # Also ignore localhost/private loopback if matched
-        if current_event.source_ip in ["127.0.0.1", "::1", "localhost"]:
+        if src_ip in trusted_ips:
             return None
 
         return {

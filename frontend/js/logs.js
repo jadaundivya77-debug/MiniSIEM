@@ -7,16 +7,39 @@ let activeLogFilter = {
   search: "",
   source: "",
   severity: "",
+  is_demo: "",
   limit: 50
 };
+let logsAutoRefreshEnabled = true;
+let logsRefreshTimer = null;
 
 document.addEventListener("DOMContentLoaded", () => {
   checkAuth();
   loadLogs();
   initLogEventListeners();
+  startLogsPolling();
 });
 
-async function loadLogs() {
+function startLogsPolling() {
+  if (logsRefreshTimer) clearInterval(logsRefreshTimer);
+  logsRefreshTimer = setInterval(() => {
+    if (logsAutoRefreshEnabled) {
+      loadLogs(true);
+    }
+  }, 4000);
+}
+
+function toggleLogsAutoRefresh() {
+  logsAutoRefreshEnabled = !logsAutoRefreshEnabled;
+  const btn = document.getElementById("logs-autorefresh-btn");
+  if (btn) {
+    btn.innerHTML = logsAutoRefreshEnabled
+      ? `<span class="status-dot status-connected"></span> Auto-Refresh: ON`
+      : `<span class="status-dot status-disconnected"></span> Auto-Refresh: OFF`;
+  }
+}
+
+async function loadLogs(silent = false) {
   const tbody = document.getElementById("logs-table-body");
   if (!tbody) return;
 
@@ -24,11 +47,12 @@ async function loadLogs() {
   if (activeLogFilter.search) query += `&search=${encodeURIComponent(activeLogFilter.search)}`;
   if (activeLogFilter.source) query += `&source=${encodeURIComponent(activeLogFilter.source)}`;
   if (activeLogFilter.severity) query += `&severity=${encodeURIComponent(activeLogFilter.severity)}`;
+  if (activeLogFilter.is_demo !== "") query += `&is_demo=${encodeURIComponent(activeLogFilter.is_demo)}`;
 
   try {
     const logs = await apiFetch(query);
     if (!logs || logs.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:2rem;color:#64748b;">No log events matched your criteria.</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:2rem;color:#64748b;">No log events matched your criteria.</td></tr>`;
       return;
     }
 
@@ -36,10 +60,14 @@ async function loadLogs() {
     logs.forEach(l => {
       html += `<tr>
         <td class="mono">${formatDate(l.timestamp)}</td>
-        <td><span class="badge badge-info">${escapeHTML(l.source)}</span></td>
+        <td>
+          <span class="badge badge-info">${escapeHTML(l.source)}</span>
+          ${l.hostname ? `<div class="mono" style="font-size:0.7rem;color:#94a3b8;margin-top:2px;">${escapeHTML(l.hostname)}</div>` : ""}
+        </td>
+        <td>${formatOriginBadge(l.is_demo)}</td>
         <td><strong>${escapeHTML(l.event_type)}</strong></td>
         <td>${l.username ? `<code>${escapeHTML(l.username)}</code>` : '<span style="color:#64748b;">-</span>'}</td>
-        <td class="mono" style="color:#38bdf8;">${escapeHTML(l.source_ip || "-")}</td>
+        <td class="mono" style="color:#38bdf8;">${escapeHTML(l.source_ip || "Local / -")}</td>
         <td>${formatSeverityBadge(l.severity)}</td>
         <td>
           <button class="btn btn-outline" style="padding:0.25rem 0.6rem;font-size:0.75rem;" onclick="viewRawLog(${l.id})">
@@ -50,7 +78,9 @@ async function loadLogs() {
     });
     tbody.innerHTML = html;
   } catch (err) {
-    showToast("Error retrieving logs: " + err.message, "danger");
+    if (!silent) {
+      showToast("Error retrieving logs: " + err.message, "danger");
+    }
   }
 }
 
@@ -81,6 +111,15 @@ function initLogEventListeners() {
       loadLogs();
     });
   }
+
+  // Origin filter (Real vs Simulated)
+  const originSelect = document.getElementById("log-origin-filter");
+  if (originSelect) {
+    originSelect.addEventListener("change", (e) => {
+      activeLogFilter.is_demo = e.target.value;
+      loadLogs();
+    });
+  }
 }
 
 // Inspect Raw Log Modal
@@ -89,8 +128,10 @@ async function viewRawLog(id) {
     const log = await apiFetch(`/logs/${id}`);
     if (!log) return;
 
-    document.getElementById("raw-modal-title").innerText = `Event #${log.id}: ${log.event_type}`;
-    document.getElementById("raw-modal-content").innerText = log.raw_event || JSON.stringify(log, null, 2);
+    document.getElementById("raw-modal-title").innerText = `Event #${log.id}: ${log.event_type} (${log.is_demo ? "SIMULATED" : "REAL"})`;
+    document.getElementById("raw-modal-content").innerText =
+      `Source: ${log.source} | Host: ${log.hostname || "-"} | User: ${log.username || "-"} | IP: ${log.source_ip || "Local / -"} | Time: ${formatDate(log.timestamp)}\n\n` +
+      (log.raw_event || JSON.stringify(log, null, 2));
     document.getElementById("raw-modal-meta").innerText = log.metadata_json ? JSON.stringify(JSON.parse(log.metadata_json), null, 2) : "None";
     document.getElementById("raw-log-modal").classList.add("active");
   } catch (err) {
